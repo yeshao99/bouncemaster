@@ -6,92 +6,118 @@
     <title>弹跳大师：霓虹冒险</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 防止手机端下拉刷新和双击缩放 */
+        /* --- 核心基础设置 --- */
         body {
             overflow: hidden;
             touch-action: none;
             user-select: none;
             -webkit-user-select: none;
+            -webkit-touch-callout: none;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #0f172a; /* 对应 bg-slate-900 */
+            background-color: #020617; /* 深邃黑蓝 */
         }
         canvas {
             display: block;
-            /* 背景将由JS绘制以实现视差效果 */
+            touch-action: none;
         }
+
+        /* --- 界面与UI --- */
         .game-ui {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+            display: flex; flex-direction: column; justify-content: space-between;
+            z-index: 10;
         }
         .btn {
             pointer-events: auto;
             touch-action: manipulation;
-            transition: all 0.1s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none; -webkit-user-select: none;
         }
-        .btn:active {
-            transform: scale(0.95);
+        .btn:active { transform: scale(0.95); }
+
+        /* --- 视觉特效 --- */
+        
+        /* 1. 复古扫描线遮罩 (Vignette + Scanlines) */
+        .crt-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 20;
+            box-shadow: inset 0 0 100px rgba(0,0,0,0.7); /* 四周暗角 */
         }
-        /* 蓄力条样式优化 */
+
+        /* 2. 蓄力条 */
         .power-bar-container {
-            position: absolute;
-            right: 30px;
-            top: 50%;
+            position: absolute; right: 30px; top: 50%;
             transform: translateY(-50%);
-            width: 16px;
-            height: 180px;
+            width: 16px; height: 180px;
             background: rgba(15, 23, 42, 0.8);
-            border-radius: 20px;
-            overflow: hidden;
+            border-radius: 20px; overflow: hidden;
             border: 2px solid rgba(255,255,255,0.2);
             box-shadow: 0 0 15px rgba(0,0,0,0.5);
         }
         .power-bar-fill {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 0%;
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 0%;
             background: linear-gradient(to top, #fbbf24, #ef4444);
             transition: height 0.05s linear;
-            box-shadow: 0 0 10px #ef4444;
+            box-shadow: 0 0 15px #ef4444;
         }
-        /* 玻璃拟态UI */
+
+        /* 3. 玻璃拟态面板 */
         .glass-panel {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        /* 手势提示动画 */
-        .gesture-hint {
-            position: absolute;
-            bottom: 20%;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            opacity: 0.8;
-            animation: fadePulse 2s infinite;
-            pointer-events: none;
+
+        /* 4. 标题特效 (Glitch + Glow) */
+        .title-container {
+            position: relative;
+            text-align: center;
+            margin-bottom: 3rem;
         }
-        @keyframes fadePulse {
-            0%, 100% { opacity: 0.4; }
-            50% { opacity: 1; }
+        .title-text {
+            font-size: 5rem;
+            font-weight: 900;
+            font-style: italic;
+            color: white;
+            text-transform: uppercase;
+            position: relative;
+            text-shadow: 0.05em 0 0 rgba(255,0,0,0.75),
+                        -0.025em -0.05em 0 rgba(0,255,0,0.75),
+                        0.025em 0.05em 0 rgba(0,0,255,0.75);
+            animation: glitch 2s infinite;
         }
-        .finger-icon {
-            width: 40px;
-            height: 40px;
-            border: 2px solid white;
-            border-radius: 50%;
-            margin-bottom: 10px;
-            background: rgba(255,255,255,0.2);
+        @keyframes glitch {
+            0% { text-shadow: 0.05em 0 0 rgba(255,0,0,0.75), -0.05em -0.025em 0 rgba(0,255,0,0.75), -0.025em 0.05em 0 rgba(0,0,255,0.75); }
+            14% { text-shadow: 0.05em 0 0 rgba(255,0,0,0.75), -0.05em -0.025em 0 rgba(0,255,0,0.75), -0.025em 0.05em 0 rgba(0,0,255,0.75); }
+            15% { text-shadow: -0.05em -0.025em 0 rgba(255,0,0,0.75), 0.025em 0.025em 0 rgba(0,255,0,0.75), -0.05em -0.05em 0 rgba(0,0,255,0.75); }
+            49% { text-shadow: -0.05em -0.025em 0 rgba(255,0,0,0.75), 0.025em 0.025em 0 rgba(0,255,0,0.75), -0.05em -0.05em 0 rgba(0,0,255,0.75); }
+            50% { text-shadow: 0.025em 0.05em 0 rgba(255,0,0,0.75), 0.05em 0 0 rgba(0,255,0,0.75), 0 -0.05em 0 rgba(0,0,255,0.75); }
+            99% { text-shadow: 0.025em 0.05em 0 rgba(255,0,0,0.75), 0.05em 0 0 rgba(0,255,0,0.75), 0 -0.05em 0 rgba(0,0,255,0.75); }
+            100% { text-shadow: -0.025em 0 0 rgba(255,0,0,0.75), -0.025em -0.025em 0 rgba(0,255,0,0.75), -0.025em -0.05em 0 rgba(0,0,255,0.75); }
+        }
+        .title-sub {
+            font-size: 1.2rem;
+            letter-spacing: 0.8em;
+            color: #22d3ee;
+            text-shadow: 0 0 10px #22d3ee;
+            margin-top: 10px;
+        }
+
+        /* 模式卡片 */
+        .mode-card {
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .mode-card:hover {
+            transform: translateY(-2px) scale(1.02);
+            border-color: rgba(255,255,255,0.3);
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.4);
         }
     </style>
 </head>
@@ -99,75 +125,87 @@
 
     <!-- 游戏画布 -->
     <canvas id="gameCanvas"></canvas>
+    
+    <!-- 复古扫描线遮罩 -->
+    <div class="crt-overlay"></div>
 
     <!-- 游戏UI层 -->
     <div id="uiLayer" class="game-ui">
-        
-        <!-- 顶部信息 -->
-        <div class="flex justify-between items-start p-6 w-full">
-            <div class="glass-panel px-6 py-3 rounded-full text-xl font-bold shadow-lg flex items-center gap-2">
-                <span class="text-blue-400">LEVEL</span>
-                <span id="levelDisplay" class="text-2xl text-white">1</span>
+        <!-- 顶部栏 -->
+        <div class="flex justify-between items-start p-6 w-full pointer-events-none">
+            <div id="topInfoBar" class="glass-panel px-4 py-2 rounded-full text-lg font-bold shadow-lg flex items-center gap-3" style="display: none;">
+                <span id="modeDisplay" class="text-xs uppercase tracking-wider text-gray-400">MODE</span>
+                <span id="levelDisplay" class="text-xl text-white">1</span>
             </div>
-            <div class="flex space-x-2">
-                <button onclick="game.resetLevel()" class="btn glass-panel hover:bg-white/10 text-white p-3 rounded-full shadow-lg group">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-400 group-hover:rotate-180 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div id="topControls" class="flex space-x-2 pointer-events-auto" style="display: none;">
+                <button onclick="game.showScreen('START')" class="btn glass-panel hover:bg-white/10 text-white p-3 rounded-full shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                </button>
+                <button onclick="game.resetLevel()" class="btn glass-panel hover:bg-white/10 text-white p-3 rounded-full shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                 </button>
             </div>
         </div>
 
-        <!-- 蓄力指示条 -->
+        <!-- 蓄力条 -->
         <div class="power-bar-container" id="powerBarContainer" style="display: none;">
             <div id="powerBar" class="power-bar-fill"></div>
         </div>
 
-        <!-- 教学提示 (仅在第一关显示) -->
-        <div id="tutorialHint" class="gesture-hint" style="display: none;">
-            <div class="finger-icon"></div>
-            <div class="text-center text-sm font-bold text-blue-200 bg-black/50 px-3 py-1 rounded-lg backdrop-blur-sm">
-                按住蓄力<br>左右滑动移动
-            </div>
-        </div>
-
-        <!-- 这里的按钮已经移除，整个屏幕都是触摸区 -->
+        <!-- 教学文字 (动态生成，无需HTML预埋) -->
     </div>
 
-    <!-- 遮罩层：开始/失败/胜利 -->
-    <div id="overlay" class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm flex flex-col items-center justify-center z-50" style="display: flex;">
-        <div class="relative">
-            <div class="absolute -inset-1 bg-gradient-to-r from-pink-600 to-purple-600 rounded-lg blur opacity-75 animate-pulse"></div>
-            <h1 id="overlayTitle" class="relative text-6xl font-black text-white mb-2 px-4 py-2 text-center tracking-tight">
-                BOUNCE<br><span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">MASTER</span>
-            </h1>
+    <!-- 主菜单遮罩层 -->
+    <div id="overlay" class="fixed inset-0 flex flex-col items-center justify-center z-50 pointer-events-none" style="display: flex;">
+        <div class="absolute inset-0 bg-gradient-to-b from-slate-900/40 via-slate-900/60 to-slate-900/90 backdrop-blur-[2px]"></div>
+
+        <div class="relative z-30 flex flex-col items-center w-full max-w-md px-6 pointer-events-auto">
+            
+            <div class="title-container">
+                <h1 id="overlayTitle" class="title-text">弹跳大师</h1>
+                <p class="title-sub">BOUNCE MASTER</p>
+            </div>
+            
+            <div id="startMenuButtons" class="w-full flex flex-col gap-5 px-4">
+                <button onclick="game.startMode('easy')" class="mode-card btn w-full py-5 bg-gradient-to-r from-cyan-600/80 to-blue-600/80 rounded-2xl shadow-lg flex items-center justify-center gap-4 group">
+                    <span class="text-3xl group-hover:scale-110 transition-transform">🌱</span>
+                    <span class="text-2xl font-bold tracking-widest text-white">简单模式</span>
+                </button>
+
+                <button onclick="game.startMode('hard')" class="mode-card btn w-full py-5 bg-gradient-to-r from-fuchsia-600/80 to-purple-600/80 rounded-2xl shadow-lg flex items-center justify-center gap-4 group">
+                    <span class="text-3xl group-hover:scale-110 transition-transform">🔥</span>
+                    <span class="text-2xl font-bold tracking-widest text-white">困难模式</span>
+                </button>
+            </div>
+
+            <button id="actionBtn" class="btn hidden w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-full text-xl font-bold shadow-lg mt-8 border border-white/20">
+                下一步
+            </button>
         </div>
-        <p id="overlayDesc" class="text-slate-300 mt-6 mb-10 text-center max-w-md px-6 leading-relaxed text-lg">
-            <span class="text-yellow-400 font-bold">全新操作模式</span><br>
-            按住屏幕蓄力 • 左右滑动控制方向<br>
-            松开手指起跳
-        </p>
-        <button id="actionBtn" class="btn px-10 py-4 bg-cyan-500 hover:bg-cyan-400 rounded-full text-xl font-bold text-slate-900 shadow-[0_0_20px_rgba(34,211,238,0.6)] transition-all transform hover:scale-105 hover:shadow-[0_0_30px_rgba(34,211,238,0.8)]">
-            开始挑战
-        </button>
     </div>
 
     <script>
-        // --- 游戏配置与状态 ---
+        // --- 游戏内核 ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         
-        // DOM 元素
+        // DOM 引用
         const overlay = document.getElementById('overlay');
         const overlayTitle = document.getElementById('overlayTitle');
-        const overlayDesc = document.getElementById('overlayDesc');
+        const startMenuButtons = document.getElementById('startMenuButtons');
         const actionBtn = document.getElementById('actionBtn');
         const levelDisplay = document.getElementById('levelDisplay');
+        const modeDisplay = document.getElementById('modeDisplay');
         const powerBar = document.getElementById('powerBar');
         const powerBarContainer = document.getElementById('powerBarContainer');
-        const tutorialHint = document.getElementById('tutorialHint');
+        const topInfoBar = document.getElementById('topInfoBar');
+        const topControls = document.getElementById('topControls');
 
-        // 游戏常量
+        // 物理常量
         const GRAVITY = 0.5; 
         const FRICTION = 0.85; 
         const AIR_RESISTANCE = 0.98; 
@@ -177,181 +215,211 @@
         const MAX_JUMP_FORCE = 19; 
         const MIN_JUMP_FORCE = 5; 
         
-        // 游戏状态
         const gameState = {
-            screen: 'START', 
+            screen: 'START', // START, PLAYING, GAMEOVER, WIN, LEVEL_COMPLETE
+            mode: 'easy', 
             currentLevel: 0,
             charging: false,
             chargePower: 0,
-            keys: { left: false, right: false, space: false }, // space 对应 蓄力
+            keys: { left: false, right: false, space: false },
             time: 0,
-            touchStartX: 0, // 触摸起始点X
-            touchCurrentX: 0 // 当前触摸点X
+            touchStartX: 0, 
+            touchCurrentX: 0
         };
 
-        // 摄像机
+        // --- 摄像机系统 (含智能预判) ---
         const camera = {
-            x: 0,
-            y: 0,
-            width: 0,
-            height: 0,
-            targetX: 0,
-            targetY: 0,
+            x: 0, y: 0, width: 0, height: 0,
+            targetX: 0, targetY: 0,
+            
             follow: function(target) {
-                this.targetX = target.x - this.width / 3; 
-                this.targetY = target.y - this.height / 1.8;
+                if (gameState.screen === 'START') {
+                    // 演示模式：平滑自动运镜
+                    this.targetX = target.x - this.width / 2;
+                    this.targetY = target.y - this.height / 2;
+                    this.x += (this.targetX - this.x) * 0.1;
+                    this.y += (this.targetY - this.y) * 0.05;
+                    return;
+                }
+
+                // 游戏模式：智能预判运镜
+                // X轴：稍微看向前方
+                const lookAheadX = target.vx * 15; 
+                this.targetX = target.x + lookAheadX - this.width / 3; 
+                
+                // Y轴：解决盲跳的核心逻辑
+                // 如果球向上飞(vy < 0)，摄像机向上看(targetY变小)，让球处于屏幕下方
+                // 如果球向下落，摄像机回归正常
+                const lookAheadY = target.vy < -5 ? -150 : 0; // 当向上速度够快时，大幅上移镜头
+                this.targetY = target.y + lookAheadY - this.height / 1.6;
+
+                // 平滑跟随
                 this.x += (this.targetX - this.x) * 0.08;
                 this.y += (this.targetY - this.y) * 0.08;
+                
+                // 边界限制
                 if(this.x < -200) this.x = -200;
             }
         };
 
-        // 背景管理器
+        // --- 背景系统 (透视网格 + 星空) ---
         const background = {
-            mountains: [],
             stars: [],
+            gridOffset: 0,
             init: function() {
-                for(let i=0; i<100; i++) {
+                this.stars = [];
+                for(let i=0; i<60; i++) {
                     this.stars.push({
                         x: Math.random() * 2000, 
                         y: Math.random() * 1000, 
-                        size: Math.random() * 2,
+                        size: Math.random() * 2 + 0.5,
                         alpha: Math.random()
                     });
-                }
-                let currentX = -500;
-                while(currentX < 10000) {
-                    let w = 200 + Math.random() * 400;
-                    let h = 100 + Math.random() * 300;
-                    this.mountains.push({x: currentX, w: w, h: h, color: `rgba(30, 41, 59, ${0.3 + Math.random()*0.2})`});
-                    currentX += w * 0.7;
                 }
             },
             draw: function(ctx, camX, camY) {
                 const w = canvas.width;
                 const h = canvas.height;
+                
+                // 1. 深空渐变
                 const grd = ctx.createLinearGradient(0, 0, 0, h);
                 grd.addColorStop(0, '#020617'); 
-                grd.addColorStop(1, '#1e293b'); 
+                grd.addColorStop(1, '#172554'); // 底部稍微亮一点蓝
                 ctx.fillStyle = grd;
                 ctx.fillRect(0, 0, w, h);
 
+                // 2. 星星
                 ctx.save();
                 ctx.translate(-camX * 0.05, -camY * 0.05);
                 ctx.fillStyle = 'white';
                 this.stars.forEach(s => {
-                    ctx.globalAlpha = s.alpha + Math.sin(gameState.time * 0.05 + s.x) * 0.2; 
+                    const flicker = Math.sin(gameState.time * 0.05 + s.x) * 0.3;
+                    ctx.globalAlpha = Math.max(0.1, s.alpha + flicker);
                     ctx.beginPath();
-                    ctx.arc(s.x % 2000 + (Math.floor(camX*0.05/2000)*2000), s.y, s.size, 0, Math.PI*2);
+                    ctx.arc((s.x + camX * 0.1) % 2000, s.y, s.size, 0, Math.PI*2);
                     ctx.fill();
                 });
                 ctx.restore();
 
+                // 3. 3D 透视网格 (Synthwave Style)
                 ctx.save();
-                ctx.translate(-camX * 0.2, h); 
-                this.mountains.forEach(m => {
-                    let renderX = m.x;
-                    ctx.fillStyle = m.color;
-                    ctx.beginPath();
-                    ctx.moveTo(renderX, 0);
-                    ctx.lineTo(renderX + m.w/2, -m.h);
-                    ctx.lineTo(renderX + m.w, 0);
-                    ctx.fill();
-                });
+                const perspectiveY = h * 0.4; // 地平线位置
+                ctx.beginPath();
+                // 只需要绘制下半部分的线条
+                ctx.strokeStyle = 'rgba(236, 72, 153, 0.15)'; // 霓虹粉
+                ctx.lineWidth = 1;
+                
+                // 纵向线 (随摄像机X移动)
+                const spacing = 150;
+                const totalLines = Math.ceil(w / spacing) + 5;
+                const moveX = -camX * 0.5 % spacing;
+                
+                for(let i = -5; i < totalLines; i++) {
+                    const x = i * spacing + moveX;
+                    // 从地平线一点发散出来的感觉
+                    const vanishingX = w/2;
+                    // 简单的模拟透视：底部x是实际x，顶部汇聚
+                    ctx.moveTo(x, h);
+                    // 为了简单效果，这里用平行视差
+                    ctx.lineTo(x + (x - w/2) * 0.5, perspectiveY); 
+                }
+                
+                // 横向线 (随摄像机Y移动，产生前进感)
+                const gridTime = (gameState.time * 2) % 100; // 自动滚动
+                for(let i = 0; i < 20; i++) {
+                    // 线条越远越密集
+                    const y = h - (i * i * 3) + (gridTime * (i*0.1)); 
+                    if (y < perspectiveY) continue;
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(w, y);
+                }
+                ctx.stroke();
                 ctx.restore();
             }
         };
 
-        // --- 游戏对象类 ---
-
+        // --- 游戏对象 ---
         class Ball {
             constructor(x, y) {
-                this.x = x;
-                this.y = y;
+                this.x = x; this.y = y;
                 this.radius = 14;
-                this.vx = 0;
-                this.vy = 0;
+                this.vx = 0; this.vy = 0;
                 this.isGrounded = false;
-                this.canDoubleJump = true; // 新增：是否可以二段跳
-                this.squashX = 1;
-                this.squashY = 1;
+                this.canDoubleJump = true; 
+                this.squashX = 1; this.squashY = 1;
                 this.dead = false;
                 this.trail = []; 
+                this.autoMode = false;
             }
-
             update() {
-                if (this.dead) return;
+                if (this.dead) {
+                    if (this.autoMode) this.resetDemo();
+                    return;
+                }
 
+                // 拖尾
                 if (gameState.time % 2 === 0 && (Math.abs(this.vx) > 1 || Math.abs(this.vy) > 1)) {
                     this.trail.push({x: this.x, y: this.y, alpha: 0.6, r: this.radius});
                     if (this.trail.length > 8) this.trail.shift();
                 }
 
-                // --- 移动逻辑核心更新 ---
-                // 根据触摸位移计算方向
-                if (gameState.keys.left) this.vx -= MOVE_SPEED;
-                if (gameState.keys.right) this.vx += MOVE_SPEED;
-
-                // 蓄力逻辑更新：支持二段跳
-                // 允许蓄力的条件：在地面上 OR (在空中且还有二段跳次数)
-                if (gameState.keys.space && (this.isGrounded || this.canDoubleJump)) {
-                    gameState.charging = true;
-                    
-                    // 特殊逻辑：空中蓄力时，产生“滞空”效果
-                    if (!this.isGrounded) {
-                        this.vy *= 0.8; // 强力减缓下落速度，产生悬停感
-                        if (Math.abs(this.vy) < 0.5) this.vy = 0;
-                        this.vx *= 0.95; // 空中蓄力时水平移动变慢，方便微调
-                        
-                        // 空中蓄力特效
-                        if (Math.random() < 0.5) {
-                            createParticles(this.x + (Math.random()-0.5)*20, this.y + this.radius, 1, '#60a5fa'); // 蓝色粒子
-                        }
-                    } else {
-                        // 地面蓄力特效
-                        if (Math.random() < 0.3) {
-                            createParticles(this.x + (Math.random()-0.5)*20, this.y + this.radius, 1, '#fbbf24');
-                        }
-                    }
-
-                    if (gameState.chargePower < MAX_JUMP_FORCE) {
-                        gameState.chargePower += JUMP_CHARGE_RATE;
-                    }
-                    const squashFactor = 1 - (gameState.chargePower / MAX_JUMP_FORCE) * 0.4;
-                    this.squashY = squashFactor;
-                    this.squashX = 1 + (1 - squashFactor) * 0.8;
-
+                // 控制逻辑
+                if (this.autoMode) {
+                    // 演示AI：简单跳跃
+                    this.vx = 4;
+                    if (this.isGrounded) this.jump(13);
+                    if (this.x > 5000) this.resetDemo();
                 } else {
-                    if (gameState.charging) {
-                        // 触发跳跃
-                        
-                        // 如果是在空中触发的，消耗二段跳机会
-                        if (!this.isGrounded) {
-                            this.canDoubleJump = false;
-                            // 二段跳爆发特效
-                            createParticles(this.x, this.y, 10, '#3b82f6'); 
+                    if (gameState.keys.left) this.vx -= MOVE_SPEED;
+                    if (gameState.keys.right) this.vx += MOVE_SPEED;
+
+                    if (gameState.keys.space && (this.isGrounded || this.canDoubleJump)) {
+                        gameState.charging = true;
+                        // 修复：空中蓄力不再减缓 vy (移除反重力)，防止无限滞空
+                        // 仅添加视觉粒子
+                        if (Math.random() < 0.3) {
+                            const color = this.isGrounded ? '#fbbf24' : '#60a5fa';
+                            createParticles(this.x + (Math.random()-0.5)*20, this.y + this.radius, 1, color);
                         }
 
-                        this.jump(Math.max(MIN_JUMP_FORCE, gameState.chargePower));
-                        gameState.charging = false;
-                        gameState.chargePower = 0;
+                        if (gameState.chargePower < MAX_JUMP_FORCE) gameState.chargePower += JUMP_CHARGE_RATE;
+                        const squashFactor = 1 - (gameState.chargePower / MAX_JUMP_FORCE) * 0.4;
+                        this.squashY = squashFactor;
+                        this.squashX = 1 + (1 - squashFactor) * 0.8;
+                    } else {
+                        if (gameState.charging) {
+                            if (!this.isGrounded) {
+                                this.canDoubleJump = false;
+                                createParticles(this.x, this.y, 10, '#3b82f6'); 
+                            }
+                            this.jump(Math.max(MIN_JUMP_FORCE, gameState.chargePower));
+                            gameState.charging = false;
+                            gameState.chargePower = 0;
+                        }
+                        // 恢复形变
+                        this.squashX += (1 - this.squashX) * 0.15;
+                        this.squashY += (1 - this.squashY) * 0.15;
                     }
-                    this.squashX += (1 - this.squashX) * 0.15;
-                    this.squashY += (1 - this.squashY) * 0.15;
                 }
 
                 this.vy += GRAVITY;
                 this.vx *= this.isGrounded ? FRICTION : AIR_RESISTANCE;
-
+                
+                // 速度限制
                 if (this.vx > MAX_SPEED_X) this.vx = MAX_SPEED_X;
                 if (this.vx < -MAX_SPEED_X) this.vx = -MAX_SPEED_X;
 
-                this.x += this.vx;
-                this.y += this.vy;
-
+                this.x += this.vx; this.y += this.vy;
+                
+                // 掉落检测
                 if (this.y > camera.y + camera.height + 300) {
-                    game.gameOver("坠入深渊");
+                    if (this.autoMode) this.resetDemo();
+                    else game.gameOver("坠入深渊");
                 }
+            }
+            
+            resetDemo() {
+                this.x = 0; this.y = 400; this.vx = 0; this.vy = 0; this.dead = false; camera.x = -200;
             }
 
             jump(force) {
@@ -362,15 +430,12 @@
 
             draw(ctx) {
                 if (this.dead) return;
-                
-                this.trail.forEach((t, i) => {
-                    t.alpha -= 0.05;
-                    t.r *= 0.9;
+                // 绘制拖尾
+                this.trail.forEach(t => {
+                    t.alpha -= 0.05; t.r *= 0.9;
                     if(t.alpha > 0) {
                         ctx.fillStyle = `rgba(56, 189, 248, ${t.alpha})`; 
-                        ctx.beginPath();
-                        ctx.arc(t.x, t.y, t.r, 0, Math.PI*2);
-                        ctx.fill();
+                        ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI*2); ctx.fill();
                     }
                 });
                 this.trail = this.trail.filter(t => t.alpha > 0);
@@ -379,145 +444,138 @@
                 ctx.translate(this.x, this.y);
                 ctx.scale(this.squashX, this.squashY);
                 
-                // 视觉提示：如果有二段跳，显示额外的光晕
+                // 光晕
                 if (!this.isGrounded && this.canDoubleJump) {
-                    ctx.shadowBlur = 20;
-                    ctx.shadowColor = "#60a5fa"; // 蓝色光晕表示可以二段跳
+                    ctx.shadowBlur = 20; ctx.shadowColor = "#60a5fa"; 
                 } else {
-                    ctx.shadowBlur = 15;
-                    ctx.shadowColor = "#22d3ee"; 
+                    ctx.shadowBlur = 15; ctx.shadowColor = "#22d3ee"; 
                 }
-
+                
+                // 球体
                 const grd = ctx.createRadialGradient(-4, -4, 2, 0, 0, this.radius);
-                grd.addColorStop(0, '#e0f2fe'); 
-                grd.addColorStop(0.5, '#38bdf8'); 
-                grd.addColorStop(1, '#0ea5e9'); 
-
-                if (gameState.charging) {
-                    ctx.shadowColor = "#fbbf24";
-                    const chargeRatio = gameState.chargePower / MAX_JUMP_FORCE;
-                    ctx.fillStyle = `rgb(${255}, ${200 * (1-chargeRatio)}, ${100})`;
-                } else {
-                    ctx.fillStyle = grd;
-                }
+                grd.addColorStop(0, '#e0f2fe'); grd.addColorStop(0.5, '#38bdf8'); grd.addColorStop(1, '#0ea5e9'); 
                 
-                ctx.beginPath();
-                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                ctx.fill();
+                // 蓄力变色
+                ctx.fillStyle = gameState.charging ? `rgb(255, ${200 * (1-gameState.chargePower / MAX_JUMP_FORCE)}, 100)` : grd;
+                if (gameState.charging) ctx.shadowColor = "#fbbf24";
                 
-                ctx.shadowBlur = 0;
-                ctx.fillStyle = 'white';
+                ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
+                
+                // 眼睛
+                ctx.shadowBlur = 0; ctx.fillStyle = 'white';
                 ctx.beginPath(); ctx.arc(5, -3, 4, 0, Math.PI*2); ctx.fill();
                 ctx.beginPath(); ctx.arc(-5, -3, 4, 0, Math.PI*2); ctx.fill();
-                
                 ctx.fillStyle = '#0f172a';
-                const lookX = this.vx * 0.3;
-                const lookY = this.vy * 0.3;
+                const lookX = this.vx * 0.3; const lookY = this.vy * 0.3;
                 ctx.beginPath(); ctx.arc(5 + lookX, -3 + lookY, 1.5, 0, Math.PI*2); ctx.fill();
                 ctx.beginPath(); ctx.arc(-5 + lookX, -3 + lookY, 1.5, 0, Math.PI*2); ctx.fill();
-
+                
                 ctx.restore();
             }
         }
 
         class Platform {
-            constructor(x, y, w, h, type) {
-                this.x = x;
-                this.y = y;
-                this.w = w;
-                this.h = h;
-                this.type = type;
+            constructor(x, y, w, h, type, props = {}) {
+                this.x = x; this.y = y; this.w = w; this.h = h; this.type = type;
+                this.active = true;
+                
+                // 碎裂方块
+                this.crumbleTimer = 0;
+                this.isCrumbling = false;
+                // 锯齿
+                this.angle = 0;
+                this.radius = props.radius || 30; 
+            }
+            
+            update() {
+                if (this.isCrumbling) {
+                    this.crumbleTimer++;
+                    if (this.crumbleTimer > 60) {
+                        this.active = false;
+                        createParticles(this.x + this.w/2, this.y + this.h/2, 10, '#94a3b8');
+                    }
+                }
+                if (this.type === 'saw') this.angle += 0.1;
             }
 
             draw(ctx) {
-                const time = gameState.time;
-
-                if (this.type === 'normal') {
-                    ctx.fillStyle = '#1e293b'; 
-                    ctx.fillRect(this.x, this.y, this.w, this.h);
-                    
-                    ctx.lineWidth = 2;
-                    ctx.strokeStyle = '#334155';
-                    ctx.strokeRect(this.x, this.y, this.w, this.h);
-
-                    ctx.shadowBlur = 10;
-                    ctx.shadowColor = '#4ade80'; 
-                    ctx.fillStyle = '#4ade80';
-                    ctx.fillRect(this.x, this.y, this.w, 4);
-                    ctx.shadowBlur = 0; 
-
-                    ctx.fillStyle = 'rgba(255,255,255,0.05)';
-                    if (this.w > 50) {
-                        ctx.fillRect(this.x + 10, this.y + 10, this.w - 20, 2);
-                        ctx.fillRect(this.x + 10, this.y + 20, 10, 5);
-                        ctx.fillRect(this.x + this.w - 20, this.y + 20, 10, 5);
+                if (!this.active) return;
+                
+                if (this.type === 'normal' || this.type === 'fragile') {
+                    if (this.type === 'fragile') {
+                        if (this.isCrumbling) {
+                            const shake = (Math.random() - 0.5) * 4;
+                            ctx.translate(shake, shake);
+                            ctx.fillStyle = '#ef4444'; 
+                        } else {
+                            ctx.fillStyle = '#64748b'; 
+                        }
+                    } else {
+                        ctx.fillStyle = '#1e293b'; 
                     }
+
+                    ctx.fillRect(this.x, this.y, this.w, this.h);
+                    ctx.lineWidth = 2; ctx.strokeStyle = '#334155'; ctx.strokeRect(this.x, this.y, this.w, this.h);
+                    
+                    // 平台顶部的发光条
+                    if (this.type !== 'fragile') {
+                        ctx.shadowBlur = 10; ctx.shadowColor = '#4ade80'; 
+                        ctx.fillStyle = '#4ade80'; ctx.fillRect(this.x, this.y, this.w, 4);
+                        ctx.shadowBlur = 0; 
+                    } else {
+                         // 碎裂纹路
+                         ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.moveTo(this.x + 10, this.y + 10); ctx.lineTo(this.x + this.w - 10, this.y + this.h - 10); ctx.stroke();
+                    }
+                    if (this.isCrumbling && this.type === 'fragile') ctx.translate(0, 0); 
 
                 } else if (this.type === 'spike') {
+                    // 尖刺绘制
                     ctx.fillStyle = '#991b1b'; 
-                    const spikeWidth = 20;
-                    const spikeCount = Math.floor(this.w / spikeWidth);
-                    
+                    const spikeWidth = 20; const spikeCount = Math.floor(this.w / spikeWidth);
                     ctx.save();
-                    ctx.shadowBlur = 10;
-                    ctx.shadowColor = '#ef4444'; 
-
+                    ctx.shadowBlur = 10; ctx.shadowColor = '#ef4444'; 
                     ctx.beginPath();
                     for(let i=0; i<spikeCount; i++) {
-                        const startX = this.x + i * spikeWidth;
-                        const peakX = startX + spikeWidth/2;
-                        const peakY = this.y; 
-                        const baseY = this.y + this.h; 
-
-                        ctx.moveTo(startX, baseY);
-                        ctx.lineTo(peakX, peakY);
-                        ctx.lineTo(startX + spikeWidth, baseY);
+                        ctx.moveTo(this.x + i * spikeWidth, this.y + this.h);
+                        ctx.lineTo(this.x + i * spikeWidth + spikeWidth/2, this.y);
+                        ctx.lineTo(this.x + i * spikeWidth + spikeWidth, this.y + this.h);
                     }
-                    
                     const grd = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.h);
-                    grd.addColorStop(0, '#fca5a5'); 
-                    grd.addColorStop(1, '#7f1d1d'); 
-                    ctx.fillStyle = grd;
-                    ctx.fill();
+                    grd.addColorStop(0, '#fca5a5'); grd.addColorStop(1, '#7f1d1d'); 
+                    ctx.fillStyle = grd; ctx.fill(); ctx.restore();
+
+                } else if (this.type === 'saw') {
+                    // 锯齿绘制
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(this.angle);
+                    ctx.shadowBlur = 15; ctx.shadowColor = '#ef4444';
+                    ctx.fillStyle = '#b91c1c';
+                    ctx.beginPath();
+                    const teeth = 8; const outerRadius = this.radius; const innerRadius = this.radius * 0.5;
+                    for (let i = 0; i < teeth * 2; i++) {
+                        const r = (i % 2 === 0) ? outerRadius : innerRadius;
+                        const a = (Math.PI * 2 * i) / (teeth * 2);
+                        ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+                    }
+                    ctx.closePath(); ctx.fill();
+                    ctx.fillStyle = '#450a0a'; ctx.beginPath(); ctx.arc(0,0, innerRadius/2, 0, Math.PI*2); ctx.fill();
                     ctx.restore();
 
                 } else if (this.type === 'goal') {
                     ctx.save();
-                    const cx = this.x + this.w/2;
-                    const cy = this.y + this.h/2;
-                    
-                    ctx.translate(cx, cy);
-                    ctx.rotate(time * 0.05);
-                    
-                    ctx.strokeStyle = '#10b981';
-                    ctx.lineWidth = 4;
-                    ctx.setLineDash([10, 10]);
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 30, 0, Math.PI*2);
-                    ctx.stroke();
-                    
-                    ctx.rotate(-time * 0.1);
-                    ctx.strokeStyle = '#34d399';
-                    ctx.lineWidth = 2;
-                    ctx.setLineDash([5, 5]);
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 20, 0, Math.PI*2);
-                    ctx.stroke();
-
-                    ctx.shadowBlur = 20;
-                    ctx.shadowColor = '#fff';
-                    ctx.fillStyle = '#ecfdf5';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 10, 0, Math.PI*2);
-                    ctx.fill();
-
+                    const cx = this.x + this.w/2; const cy = this.y + this.h/2;
+                    ctx.translate(cx, cy); ctx.rotate(gameState.time * 0.05);
+                    ctx.strokeStyle = '#10b981'; ctx.lineWidth = 4; ctx.setLineDash([10, 10]);
+                    ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI*2); ctx.stroke();
+                    ctx.shadowBlur = 20; ctx.shadowColor = '#fff'; ctx.fillStyle = '#ecfdf5';
+                    ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI*2); ctx.fill();
                     ctx.restore();
                 } else if (this.type === 'text') {
-                    // 新增：关卡内的文字提示
                     ctx.save();
                     ctx.fillStyle = "rgba(255,255,255,0.7)";
                     ctx.font = "bold 20px 'Segoe UI'";
-                    ctx.fillText(this.w, this.x, this.y); // 复用w字段作为文本内容
+                    ctx.fillText(this.w, this.x, this.y);
                     ctx.restore();
                 }
             }
@@ -528,288 +586,273 @@
             for(let i=0; i<count; i++) {
                 particles.push({
                     x: x, y: y,
-                    vx: (Math.random() - 0.5) * 8,
-                    vy: (Math.random() - 1) * 8,
-                    size: Math.random() * 3 + 1,
-                    life: 1.0,
-                    color: color,
-                    gravity: 0.2
+                    vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 1) * 8,
+                    size: Math.random() * 3 + 1, life: 1.0, color: color, gravity: 0.2
                 });
             }
         }
 
         // --- 关卡设计 ---
-        const levels = [
-            {
-                // 关卡 1: 新手教学
+        const demoLevel = {
+             start: {x: 0, y: 400},
+             platforms: [
+                 {x: -200, y: 500, w: 10000, h: 200, type: 'normal'},
+                 {x: 600, y: 450, w: 50, h: 50, type: 'normal'},
+                 {x: 1200, y: 400, w: 50, h: 100, type: 'normal'},
+                 {x: 1800, y: 450, w: 50, h: 50, type: 'normal'},
+                 {x: 2400, y: 400, w: 50, h: 100, type: 'normal'},
+                 {x: 3000, y: 450, w: 50, h: 50, type: 'normal'},
+                 {x: 3600, y: 400, w: 50, h: 100, type: 'normal'},
+                 {x: 4200, y: 450, w: 50, h: 50, type: 'normal'},
+             ]
+        };
+
+        const generateEasyLevels = () => {
+            const levels = [];
+            // 简单模式第1关：教学
+            levels.push({
                 start: {x: 50, y: 300},
                 platforms: [
-                    // 1. 蓄力教学
                     {x: -100, y: 400, w: 500, h: 200, type: 'normal'},
-                    {x: 50, y: 300, w: "长按屏幕任意处蓄力，松开起跳", h: 0, type: 'text'},
-                    
-                    // 2. 滑动教学
-                    {x: 400, y: 350, w: 400, h: 200, type: 'normal'}, // 稍微高一点的平台，需要跳上来
-                    {x: 450, y: 250, w: "← 按住的同时左右滑动 →", h: 0, type: 'text'},
-                    {x: 550, y: 280, w: "控制移动方向", h: 0, type: 'text'},
-                    
-                    // 3. 综合练习
-                    {x: 850, y: 350, w: 300, h: 200, type: 'normal'},
-                    {x: 1200, y: 300, w: 200, h: 200, type: 'normal'}, // 稍微远一点，需要边跳边滑
-                    
-                    // 终点
-                    {x: 1450, y: 220, w: 60, h: 80, type: 'goal'}
+                    {x: 50, y: 300, w: "按住屏幕蓄力，左右滑动移动，松开起跳", h: 0, type: 'text'},
+                    {x: 400, y: 350, w: 300, h: 200, type: 'normal'}, 
+                    {x: 800, y: 300, w: 200, h: 200, type: 'normal'}, 
+                    {x: 1100, y: 220, w: 60, h: 80, type: 'goal'}
+                ]
+            });
+            // 简单模式后续
+            for(let i=2; i<=10; i++) {
+                const len = 1500 + i * 200; 
+                const hasSpikes = i > 2; 
+                const hasFragile = i > 4;
+                const hasSaws = i > 6;
+                let plats = [
+                    {x: -100, y: 500, w: 400, h: 200, type: 'normal'},
+                    {x: 50, y: 350, w: `第 ${i} 关`, h: 0, type: 'text'}
+                ];
+                let cx = 350;
+                while(cx < len) {
+                    const gap = 120 + Math.random() * 80;
+                    const heightVar = (Math.random() - 0.5) * 80;
+                    const w = 100 + Math.random() * 100;
+                    if (hasSaws && Math.random() < 0.2) plats.push({x: cx + gap/2, y: 450 + heightVar, w: 0, h: 0, type: 'saw', radius: 25});
+                    if (hasFragile && Math.random() < 0.3) plats.push({x: cx + gap, y: 500 + heightVar, w: w, h: 50, type: 'fragile'});
+                    else {
+                        plats.push({x: cx + gap, y: 500 + heightVar, w: w, h: 50, type: 'normal'});
+                        if (hasSpikes && Math.random() < 0.3) plats.push({x: cx + gap/2, y: 600, w: gap, h: 50, type: 'spike'});
+                    }
+                    cx += gap + w;
+                }
+                plats.push({x: cx + 100, y: 450, w: 60, h: 80, type: 'goal'});
+                levels.push({ start: {x: 50, y: 400}, platforms: plats });
+            }
+            return levels;
+        };
+        const easyLevels = generateEasyLevels();
+
+        const hardLevels = [
+            // 困难模式第1关：教学
+            {
+                start: {x: 50, y: 300},
+                platforms: [
+                    {x: -100, y: 400, w: 500, h: 200, type: 'normal'},
+                    {x: 50, y: 300, w: "困难模式：小心陷阱，尖刺侧面可反弹", h: 0, type: 'text'},
+                    {x: 400, y: 350, w: 200, h: 50, type: 'normal'}, 
+                    {x: 650, y: 350, w: 250, h: 50, type: 'normal'},
+                    {x: 950, y: 300, w: 60, h: 20, type: 'fragile'},
+                    {x: 1050, y: 250, w: 60, h: 20, type: 'fragile'},
+                    {x: 1150, y: 200, w: 60, h: 20, type: 'fragile'},
+                    {x: 1100, y: 150, w: 0, h: 0, type: 'saw', radius: 20},
+                    {x: 1300, y: 300, w: 200, h: 200, type: 'normal'}, 
+                    {x: 1550, y: 220, w: 60, h: 80, type: 'goal'}
                 ]
             },
+            // 困难模式第2关
             {
-                // 关卡 2: 原·史诗长关卡
                 start: {x: 50, y: 400},
                 platforms: [
-                    // --- 阶段 1: 基础跋涉 ---
-                    {x: -200, y: 500, w: 500, h: 500, type: 'normal'}, // 起点
-                    
-                    // 巨大刺坑与浮板
+                    {x: -200, y: 500, w: 500, h: 500, type: 'normal'},
                     {x: 300, y: 700, w: 600, h: 50, type: 'spike'}, 
-                    {x: 350, y: 400, w: 80, h: 20, type: 'normal'},
-                    {x: 550, y: 300, w: 80, h: 20, type: 'normal'}, 
-                    {x: 750, y: 450, w: 80, h: 20, type: 'normal'}, 
-                    
-                    // --- 阶段 2: 叹息之墙 ---
-                    {x: 900, y: 500, w: 200, h: 500, type: 'normal'}, // 中转站
-                    {x: 1150, y: 150, w: 40, h: 850, type: 'normal'}, // 巨墙
-                    {x: 1020, y: 350, w: 60, h: 20, type: 'normal'}, // 助跳板
-                    
-                    // 墙后的接应点
-                    {x: 1250, y: 500, w: 200, h: 20, type: 'normal'}, 
-                    
-                    // --- 阶段 3: 通天塔 ---
+                    {x: 350, y: 400, w: 80, h: 20, type: 'fragile'}, 
+                    {x: 550, y: 300, w: 80, h: 20, type: 'fragile'}, 
+                    {x: 750, y: 450, w: 80, h: 20, type: 'fragile'}, 
+                    {x: 900, y: 500, w: 300, h: 50, type: 'normal'},
+                    {x: 1050, y: 450, w: 0, h: 0, type: 'saw', radius: 40},
+                    {x: 1250, y: 450, w: 0, h: 0, type: 'saw', radius: 40},
                     {x: 1450, y: 600, w: 400, h: 50, type: 'spike'}, 
-                    
-                    {x: 1550, y: 400, w: 80, h: 20, type: 'normal'}, 
-                    {x: 1700, y: 300, w: 80, h: 20, type: 'normal'}, 
-                    {x: 1550, y: 200, w: 80, h: 20, type: 'normal'}, 
-                    {x: 1700, y: 100, w: 80, h: 20, type: 'normal'}, 
-
-                    // --- 阶段 4: 隧道惊魂 ---
-                    {x: 1900, y: 200, w: 800, h: 20, type: 'normal'}, 
-                    {x: 2000, y: 50, w: 600, h: 30, type: 'spike'},
-                    {x: 2100, y: 180, w: 50, h: 20, type: 'spike'},
-                    {x: 2300, y: 180, w: 50, h: 20, type: 'spike'},
-                    {x: 2500, y: 180, w: 50, h: 20, type: 'spike'},
-
-                    // --- 阶段 5: 信仰之跃 ---
-                    {x: 2700, y: 200, w: 100, h: 20, type: 'normal'}, 
-                    
-                    {x: 2900, y: 600, w: 150, h: 50, type: 'normal'}, 
-                    {x: 2800, y: 650, w: 100, h: 50, type: 'spike'}, 
-                    {x: 3050, y: 650, w: 100, h: 50, type: 'spike'}, 
-
-                    // --- 阶段 6: 终极冲刺连接 ---
-                    {x: 3200, y: 500, w: 80, h: 20, type: 'normal'}, 
-                    {x: 3400, y: 400, w: 80, h: 20, type: 'normal'}, 
-                    
-                    {x: 3600, y: 400, w: 30, h: 200, type: 'normal'},
-                    {x: 3800, y: 400, w: 30, h: 200, type: 'normal'},
-                    {x: 4000, y: 400, w: 30, h: 200, type: 'normal'},
-
-                    {x: 4150, y: 350, w: 200, h: 50, type: 'normal'}, 
-
-                    // --- 阶段 7: 像素矩阵 ---
-                    {x: 4350, y: 700, w: 1000, h: 50, type: 'spike'},
-                    
-                    {x: 4400, y: 350, w: 40, h: 40, type: 'normal'},
-                    {x: 4550, y: 250, w: 40, h: 40, type: 'normal'}, 
-                    {x: 4700, y: 350, w: 40, h: 40, type: 'normal'}, 
-                    {x: 4850, y: 200, w: 40, h: 40, type: 'normal'}, 
-                    {x: 5000, y: 350, w: 60, h: 20, type: 'normal'}, 
-
-                    // --- 阶段 8: 深渊矿井 ---
-                    {x: 5200, y: 350, w: 100, h: 20, type: 'normal'}, 
-                    
-                    {x: 5350, y: 100, w: 50, h: 800, type: 'normal'}, 
-                    {x: 5650, y: 100, w: 50, h: 800, type: 'normal'}, 
-
-                    {x: 5450, y: 550, w: 80, h: 20, type: 'normal'}, 
-                    {x: 5550, y: 750, w: 80, h: 20, type: 'normal'}, 
-                    {x: 5400, y: 850, w: 300, h: 50, type: 'spike'}, 
-
-                    {x: 5750, y: 600, w: 80, h: 20, type: 'normal'},
-                    {x: 5900, y: 450, w: 80, h: 20, type: 'normal'},
-
-                    // --- 阶段 9: 压顶通道 ---
-                    {x: 6100, y: 400, w: 1200, h: 50, type: 'normal'}, 
-                    {x: 6100, y: 200, w: 1200, h: 50, type: 'spike'},  
-
-                    {x: 6300, y: 360, w: 20, h: 40, type: 'spike'},
-                    {x: 6500, y: 360, w: 20, h: 40, type: 'spike'},
-                    {x: 6700, y: 300, w: 50, h: 100, type: 'normal'}, 
-
-                    // --- 阶段 10: 通天阶梯 ---
-                    {x: 7400, y: 400, w: 150, h: 20, type: 'normal'}, 
-                    {x: 7600, y: 300, w: 100, h: 20, type: 'normal'},
-                    {x: 7800, y: 200, w: 100, h: 20, type: 'normal'},
-                    {x: 8000, y: 100, w: 100, h: 20, type: 'normal'},
-                    
-                    // 真正的终点
-                    {x: 8200, y: 50, w: 300, h: 50, type: 'normal'},
-                    {x: 8350, y: -30, w: 60, h: 80, type: 'goal'}
+                    {x: 1550, y: 420, w: 150, h: 20, type: 'normal'}, 
+                    {x: 1800, y: 300, w: 80, h: 20, type: 'normal'}, 
+                    {x: 2000, y: 200, w: 200, h: 50, type: 'normal'},
+                    {x: 2100, y: 120, w: 60, h: 80, type: 'goal'}
                 ]
             }
         ];
 
-        // --- 游戏主逻辑 ---
-
+        // --- 游戏循环 ---
         const game = {
-            ball: null,
-            platforms: [],
+            ball: null, platforms: [],
             
             init: function() {
                 background.init();
                 this.resize();
                 window.addEventListener('resize', () => this.resize());
                 this.setupInputs();
-                this.showScreen('START');
+                this.startDemoMode();
             },
-
+            
             resize: function() {
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
-                camera.width = canvas.width;
-                camera.height = canvas.height;
+                camera.width = canvas.width; camera.height = canvas.height;
+            },
+
+            startDemoMode: function() {
+                gameState.screen = 'START';
+                this.loadLevelData(demoLevel); 
+                this.ball.autoMode = true;
+                topInfoBar.style.display = 'none';
+                topControls.style.display = 'none';
+                overlay.style.display = 'flex';
+                overlay.style.pointerEvents = 'none'; 
+                document.querySelector('#overlay > div.pointer-events-auto').style.pointerEvents = 'auto';
+            },
+
+            startMode: function(mode) {
+                this.mode = mode;
+                overlay.style.display = 'none'; 
+                topInfoBar.style.display = 'flex';
+                topControls.style.display = 'flex';
+                this.loadLevel(0);
             },
 
             loadLevel: function(levelIndex) {
+                const levels = (this.mode === 'easy' ? easyLevels : hardLevels);
                 if (levelIndex >= levels.length) {
-                    this.currentLevel = 0;
-                    this.showScreen('WIN', "全通关！你就是霓虹弹跳大师！");
+                    this.showScreen('WIN', "通关！");
                     return;
                 }
-                
                 gameState.currentLevel = levelIndex;
                 levelDisplay.textContent = levelIndex + 1;
-                
-                const levelData = levels[levelIndex];
-                this.ball = new Ball(levelData.start.x, levelData.start.y);
-                this.platforms = levelData.platforms.map(p => new Platform(p.x, p.y, p.w, p.h, p.type));
-                
-                gameState.charging = false;
-                gameState.chargePower = 0;
-                gameState.keys.space = false;
-                gameState.keys.left = false;
-                gameState.keys.right = false;
-                
+                modeDisplay.textContent = this.mode === 'easy' ? '简单' : '困难';
+                this.loadLevelData(levels[levelIndex]);
                 this.showScreen('PLAYING');
-
-                // 如果是第一关，显示教学提示
-                if (levelIndex === 0) {
-                    tutorialHint.style.display = 'flex';
-                    setTimeout(() => {
-                        tutorialHint.style.display = 'none';
-                    }, 8000); // 8秒后自动隐藏提示
-                } else {
-                    tutorialHint.style.display = 'none';
-                }
             },
 
-            resetLevel: function() {
-                this.loadLevel(gameState.currentLevel);
+            loadLevelData: function(levelData) {
+                this.ball = new Ball(levelData.start.x, levelData.start.y);
+                this.platforms = levelData.platforms.map(p => new Platform(p.x, p.y, p.w, p.h, p.type, p));
+                gameState.charging = false; gameState.chargePower = 0;
+                gameState.keys.space = false; gameState.keys.left = false; gameState.keys.right = false;
             },
+
+            resetLevel: function() { this.loadLevel(gameState.currentLevel); },
 
             gameOver: function(reason) {
                 createParticles(this.ball.x, this.ball.y, 30, '#38bdf8');
                 this.ball.dead = true;
-                setTimeout(() => {
-                    this.showScreen('GAMEOVER', reason);
-                }, 600); 
+                setTimeout(() => this.showScreen('GAMEOVER', reason), 600);
             },
 
             showScreen: function(screenName, msg = "") {
                 gameState.screen = screenName;
-                
+                if (screenName === 'START') { this.startDemoMode(); return; }
                 if (screenName === 'PLAYING') {
-                    overlay.style.display = 'none';
-                    powerBarContainer.style.display = 'block';
+                    overlay.style.display = 'none'; powerBarContainer.style.display = 'block';
                 } else {
-                    overlay.style.display = 'flex';
-                    powerBarContainer.style.display = 'none';
-                    tutorialHint.style.display = 'none';
-                    
-                    if (screenName === 'START') {
-                        overlayTitle.innerHTML = 'BOUNCE<br><span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">MASTER</span>';
-                        overlayDesc.innerHTML = "移动端专属体验<br><br>按住屏幕任意处蓄力<br>按住的同时左右滑动来移动";
-                        actionBtn.textContent = "开始游戏";
-                        actionBtn.onclick = () => this.loadLevel(0);
-                    } else if (screenName === 'GAMEOVER') {
-                        overlayTitle.textContent = "破碎";
-                        overlayDesc.textContent = msg || "球体解体";
-                        actionBtn.textContent = "重试";
+                    overlay.style.display = 'flex'; overlay.style.pointerEvents = 'auto'; 
+                    powerBarContainer.style.display = 'none'; tutorialHint.style.display = 'none';
+                    if (screenName === 'GAMEOVER') {
+                        document.getElementById('overlayTitle').textContent = "破碎"; // 简单修改文本，实际应有独立UI逻辑
+                        // 这里简化处理，直接用现有按钮
+                        actionBtn.style.display = 'block'; actionBtn.textContent = "重试";
                         actionBtn.onclick = () => this.resetLevel();
+                        startMenuButtons.style.display = 'none';
                     } else if (screenName === 'WIN') {
-                        overlayTitle.textContent = "传奇";
-                        overlayDesc.textContent = msg;
-                        actionBtn.textContent = "再次挑战";
-                        actionBtn.onclick = () => this.loadLevel(0);
+                        document.getElementById('overlayTitle').textContent = "传奇";
+                        actionBtn.style.display = 'block'; actionBtn.textContent = "返回主菜单";
+                        actionBtn.onclick = () => {
+                             startMenuButtons.style.display = 'flex'; actionBtn.style.display = 'none';
+                             this.showScreen('START');
+                        };
+                        startMenuButtons.style.display = 'none';
                     } else if (screenName === 'LEVEL_COMPLETE') {
-                        overlayTitle.textContent = "完成";
-                        overlayDesc.textContent = "准备好迎接真正的挑战了吗？";
-                        actionBtn.textContent = "下一关";
+                        document.getElementById('overlayTitle').textContent = "完成";
+                        actionBtn.style.display = 'block'; actionBtn.textContent = "下一关";
                         actionBtn.onclick = () => this.loadLevel(gameState.currentLevel + 1);
+                        startMenuButtons.style.display = 'none';
                     }
                 }
             },
 
             checkCollisions: function() {
                 const ball = this.ball;
+                if (ball.dead) return;
                 ball.isGrounded = false;
 
                 for (let p of this.platforms) {
-                    // 文字类型不参与碰撞
+                    if (!p.active) continue;
                     if (p.type === 'text') continue;
+
+                    if (p.type === 'saw') {
+                        const dx = ball.x - p.x; const dy = ball.y - p.y;
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+                        if (dist < ball.radius + p.radius) {
+                             if (!ball.autoMode) this.gameOver("被锯齿撕裂");
+                             else ball.dead = true;
+                        }
+                        continue;
+                    }
 
                     let closestX = Math.max(p.x, Math.min(ball.x, p.x + p.w));
                     let closestY = Math.max(p.y, Math.min(ball.y, p.y + p.h));
-
-                    let dx = ball.x - closestX;
-                    let dy = ball.y - closestY;
+                    let dx = ball.x - closestX; let dy = ball.y - closestY;
                     let distance = Math.sqrt(dx * dx + dy * dy);
 
                     if (distance < ball.radius) {
-                        
                         if (p.type === 'spike') {
-                            this.gameOver("接触危险晶体");
-                            return;
-                        } else if (p.type === 'goal') {
-                            this.showScreen('LEVEL_COMPLETE');
-                            return;
-                        }
-
-                        if (p.type === 'normal') {
-                            const isFalling = ball.vy >= 0;
-                            const isAbovePlatformCenter = ball.y < p.y + p.h / 2; 
-                            const isVerticalAligned = ball.y < p.y + ball.radius; 
-                            const isHorizontalAligned = ball.x > p.x - ball.radius * 0.5 && ball.x < p.x + p.w + ball.radius * 0.5;
-
-                            if (isFalling && isAbovePlatformCenter && isVerticalAligned && isHorizontalAligned) {
-                                ball.y = p.y - ball.radius;
-                                ball.vy = 0;
-                                ball.isGrounded = true;
-                                ball.canDoubleJump = true; // 落地重置二段跳次数
-                                
-                                if (Math.abs(ball.vy) > 2) {
-                                    createParticles(ball.x, ball.y + ball.radius, 3, '#4ade80');
+                            // 修复：尖刺碰撞逻辑优化
+                            // 只有当球从上方落下(vy > 0) 且 接触点在尖刺顶部附近时才死亡
+                            // 否则视为碰撞反弹
+                            const hitTop = ball.vy > 0 && ball.y < p.y + 15; // 判定范围
+                            
+                            if (hitTop) {
+                                if (!ball.autoMode) this.gameOver("接触危险尖刺");
+                                else ball.dead = true;
+                                return;
+                            } else {
+                                // 安全反弹
+                                // 简单判定反弹方向
+                                if (Math.abs(dx) > Math.abs(dy)) {
+                                    // 侧面撞击
+                                    ball.vx *= -0.8;
+                                    ball.x += dx > 0 ? 2 : -2;
+                                } else {
+                                    // 底部撞击
+                                    ball.vy *= -0.8;
+                                    ball.y += dy > 0 ? 2 : -2;
                                 }
-                            } 
-                            else if (ball.vy < 0 && ball.y > p.y + p.h - ball.radius && isHorizontalAligned) {
-                                ball.y = p.y + p.h + ball.radius;
-                                ball.vy *= -0.5;
                             }
-                            else {
+                        } else if (p.type === 'goal') {
+                            if (!ball.autoMode) this.showScreen('LEVEL_COMPLETE');
+                            else this.ball.resetDemo();
+                            return;
+                        } else if (p.type === 'normal' || p.type === 'fragile') {
+                            const isFalling = ball.vy >= 0;
+                            const isAbove = ball.y < p.y + p.h / 2; 
+                            const isAligned = ball.x > p.x - ball.radius * 0.5 && ball.x < p.x + p.w + ball.radius * 0.5;
+
+                            if (isFalling && isAbove && isAligned) {
+                                ball.y = p.y - ball.radius; ball.vy = 0;
+                                ball.isGrounded = true; ball.canDoubleJump = true; 
+                                if (p.type === 'fragile') p.isCrumbling = true; 
+                                if (Math.abs(ball.vy) > 2) createParticles(ball.x, ball.y + ball.radius, 3, '#4ade80');
+                            } else if (ball.vy < 0 && ball.y > p.y + p.h - ball.radius && isAligned) {
+                                ball.y = p.y + p.h + ball.radius; ball.vy *= -0.5;
+                            } else {
                                  if (ball.x < p.x + p.w / 2) { 
-                                    ball.x = p.x - ball.radius;
-                                    ball.vx = -Math.abs(ball.vx) * 0.5; 
+                                    ball.x = p.x - ball.radius; ball.vx = -Math.abs(ball.vx) * 0.5; 
                                  } else { 
-                                    ball.x = p.x + p.w + ball.radius;
-                                    ball.vx = Math.abs(ball.vx) * 0.5; 
+                                    ball.x = p.x + p.w + ball.radius; ball.vx = Math.abs(ball.vx) * 0.5; 
                                  }
                             }
                         }
@@ -818,26 +861,19 @@
             },
 
             update: function() {
-                if (gameState.screen !== 'PLAYING') return;
                 gameState.time++;
-                this.ball.update();
+                this.platforms.forEach(p => p.update()); 
+                if (this.ball) this.ball.update();
                 this.checkCollisions();
-                
                 for(let i = particles.length - 1; i >= 0; i--) {
                     let p = particles[i];
-                    p.x += p.vx;
-                    p.y += p.vy;
-                    p.vy += p.gravity; 
-                    p.life -= 0.03;
-                    p.size *= 0.95;
+                    p.x += p.vx; p.y += p.vy; p.vy += p.gravity; 
+                    p.life -= 0.03; p.size *= 0.95;
                     if(p.life <= 0) particles.splice(i, 1);
                 }
-                camera.follow(this.ball);
-                
-                if (gameState.charging) {
-                    powerBar.style.height = (gameState.chargePower / MAX_JUMP_FORCE * 100) + '%';
-                } else {
-                    powerBar.style.height = '0%';
+                if (this.ball) camera.follow(this.ball);
+                if (gameState.screen === 'PLAYING') {
+                     powerBar.style.height = gameState.charging ? (gameState.chargePower / MAX_JUMP_FORCE * 100) + '%' : '0%';
                 }
             },
 
@@ -848,18 +884,14 @@
                 this.platforms.forEach(p => p.draw(ctx));
                 if (this.ball) this.ball.draw(ctx);
                 particles.forEach(p => {
-                    ctx.fillStyle = p.color;
-                    ctx.globalAlpha = p.life;
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
-                    ctx.fill();
+                    ctx.fillStyle = p.color; ctx.globalAlpha = p.life;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
                     ctx.globalAlpha = 1.0;
                 });
                 ctx.restore();
             },
 
             setupInputs: function() {
-                // 仅保留键盘作为调试用 (电脑端也能玩)
                 window.addEventListener('keydown', (e) => {
                     if (e.code === 'ArrowLeft') gameState.keys.left = true;
                     if (e.code === 'ArrowRight') gameState.keys.right = true;
@@ -870,72 +902,37 @@
                     if (e.code === 'ArrowRight') gameState.keys.right = false;
                     if (e.code === 'Space') gameState.keys.space = false;
                 });
-
-                // --- 核心移动端交互：全屏滑动手势 (修复版) ---
                 
                 const handleTouchStart = (e) => {
-                    // 检查是否点击了UI按钮 (例如重置、开始游戏等)
-                    // 使用 closest 向上查找，防止点到图标SVG没反应
-                    if (e.target.closest('.btn')) return;
-                    
-                    // 只有在游戏进行中才阻止默认行为（防止页面滚动）
+                    if (e.target.closest('.btn') || e.target.tagName === 'BUTTON') return;
                     if (gameState.screen === 'PLAYING') {
-                         e.preventDefault();
-                    } else if (gameState.screen !== 'START' && gameState.screen !== 'GAMEOVER' && gameState.screen !== 'WIN' && gameState.screen !== 'LEVEL_COMPLETE') {
-                         // 如果不是在需要点击按钮的界面，阻止默认行为
-                         e.preventDefault();
+                        e.preventDefault(); e.stopPropagation();
                     }
-
-                    // 开启蓄力
+                    if (gameState.screen !== 'PLAYING') return; 
                     gameState.keys.space = true;
-                    
-                    // 记录起始位置
                     if(e.touches.length > 0) {
                         gameState.touchStartX = e.touches[0].clientX;
                         gameState.touchCurrentX = gameState.touchStartX;
                     }
                 };
-
                 const handleTouchMove = (e) => {
-                    // 如果没有按下（即没有开始蓄力），不处理滑动
                     if (!gameState.keys.space) return;
-                    
-                    e.preventDefault(); // 防止滑动时页面滚动
-
+                    e.preventDefault();
                     if(e.touches.length > 0) {
                         gameState.touchCurrentX = e.touches[0].clientX;
-                        
-                        // 计算偏移量来决定左右移动
                         const delta = gameState.touchCurrentX - gameState.touchStartX;
-                        const threshold = 15; // 降低灵敏度阈值，让移动更跟手
-
-                        if (delta < -threshold) {
-                            gameState.keys.left = true;
-                            gameState.keys.right = false;
-                        } else if (delta > threshold) {
-                            gameState.keys.right = true;
-                            gameState.keys.left = false;
-                        } else {
-                            // 在阈值内，被认为是想要垂直起跳，停止水平移动
-                            gameState.keys.left = false;
-                            gameState.keys.right = false;
-                        }
+                        const threshold = 15; 
+                        if (delta < -threshold) { gameState.keys.left = true; gameState.keys.right = false; }
+                        else if (delta > threshold) { gameState.keys.right = true; gameState.keys.left = false; }
+                        else { gameState.keys.left = false; gameState.keys.right = false; }
                     }
                 };
-
                 const handleTouchEnd = (e) => {
-                    // 只有在蓄力状态下松手才触发跳跃
                     if (gameState.keys.space) {
                         e.preventDefault();
-                        // 松开手指：停止蓄力（触发跳跃），停止移动
-                        gameState.keys.space = false;
-                        gameState.keys.left = false;
-                        gameState.keys.right = false;
+                        gameState.keys.space = false; gameState.keys.left = false; gameState.keys.right = false;
                     }
                 };
-
-                // 直接绑定到 window，确保能捕获全屏事件
-                // 使用 passive: false 允许我们调用 preventDefault
                 window.addEventListener('touchstart', handleTouchStart, {passive: false});
                 window.addEventListener('touchmove', handleTouchMove, {passive: false});
                 window.addEventListener('touchend', handleTouchEnd, {passive: false});
