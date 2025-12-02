@@ -14,7 +14,7 @@
             -webkit-user-select: none;
             -webkit-touch-callout: none;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #0f172a; /* 回归上一版的 Slate-900 */
+            background-color: #0f172a; 
         }
         canvas {
             display: block;
@@ -39,7 +39,7 @@
 
         /* --- 视觉特效 --- */
         
-        /* 1. 复古扫描线遮罩 (仅在首页显示) */
+        /* 复古扫描线遮罩 (仅在首页显示，通过 opacity 控制显隐) */
         .crt-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
@@ -47,10 +47,11 @@
             pointer-events: none;
             z-index: 20;
             box-shadow: inset 0 0 100px rgba(0,0,0,0.7);
-            transition: opacity 0.5s ease; /* 淡入淡出效果 */
+            transition: opacity 0.5s ease;
+            opacity: 1; /* 默认显示 */
         }
 
-        /* 2. 蓄力条 */
+        /* 蓄力条 */
         .power-bar-container {
             position: absolute; right: 30px; top: 50%;
             transform: translateY(-50%);
@@ -67,19 +68,14 @@
             box-shadow: 0 0 15px #ef4444;
         }
 
-        /* 3. 玻璃拟态面板 */
+        /* 玻璃拟态面板 */
         .glass-panel {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        /* 4. 标题特效 (Glitch) */
-        .title-container {
-            position: relative;
-            text-align: center;
-            margin-bottom: 3rem;
-        }
+        /* 标题特效 (Glitch) - 仅用于首页遮罩层 */
         .title-text {
             font-size: 5rem;
             font-weight: 900;
@@ -164,7 +160,7 @@
 
         <div class="relative z-30 flex flex-col items-center w-full max-w-md px-6 pointer-events-auto">
             
-            <div class="title-container">
+            <div class="relative w-full text-center mb-16">
                 <h1 id="overlayTitle" class="title-text">弹跳大师</h1>
                 <p class="title-sub">BOUNCE MASTER</p>
             </div>
@@ -172,12 +168,18 @@
             <div id="startMenuButtons" class="w-full flex flex-col gap-5 px-4">
                 <button onclick="game.startMode('easy')" class="mode-card btn w-full py-5 bg-gradient-to-r from-cyan-600/80 to-blue-600/80 rounded-2xl shadow-lg flex items-center justify-center gap-4 group">
                     <span class="text-3xl group-hover:scale-110 transition-transform">🌱</span>
-                    <span class="text-2xl font-bold tracking-widest text-white">简单模式</span>
+                    <div class="flex flex-col items-start">
+                        <span class="text-2xl font-bold tracking-widest text-white">简单模式</span>
+                        <span class="text-xs text-cyan-100 opacity-80">20关 • 休闲闯关</span>
+                    </div>
                 </button>
 
                 <button onclick="game.startMode('hard')" class="mode-card btn w-full py-5 bg-gradient-to-r from-fuchsia-600/80 to-purple-600/80 rounded-2xl shadow-lg flex items-center justify-center gap-4 group">
                     <span class="text-3xl group-hover:scale-110 transition-transform">🔥</span>
-                    <span class="text-2xl font-bold tracking-widest text-white">困难模式</span>
+                    <div class="flex flex-col items-start">
+                        <span class="text-2xl font-bold tracking-widest text-white">困难模式</span>
+                        <span class="text-xs text-fuchsia-100 opacity-80">2关 • 史诗挑战</span>
+                    </div>
                 </button>
             </div>
 
@@ -227,14 +229,14 @@
             touchCurrentX: 0
         };
 
-        // --- 摄像机系统 (解决盲跳问题) ---
+        // --- 摄像机系统 (智能运镜 2.0 - 彻底解决盲跳) ---
         const camera = {
             x: 0, y: 0, width: 0, height: 0,
             targetX: 0, targetY: 0,
             
             follow: function(target) {
                 if (gameState.screen === 'START') {
-                    // 演示模式：平滑自动运镜
+                    // 演示模式：简单平移
                     this.targetX = target.x - this.width / 2;
                     this.targetY = target.y - this.height / 2;
                     this.x += (this.targetX - this.x) * 0.1;
@@ -242,33 +244,41 @@
                     return;
                 }
 
-                // 游戏模式：智能预判运镜 (Smart Follow)
+                // --- 游戏模式：智能构图 ---
                 
-                // 1. 水平跟随：稍微偏向运动方向，让玩家看清前方
-                const lookAheadX = target.vx * 15; 
-                this.targetX = target.x + lookAheadX - this.width / 3; 
+                // 1. 水平跟随：稍微看向运动前方
+                // 如果球向右跑，相机就往右看多一点，反之亦然
+                const lookAheadX = target.vx * 20; 
+                this.targetX = target.x + lookAheadX - this.width * 0.4; 
                 
-                // 2. 垂直跟随：解决盲跳的核心
-                // 计算目标在屏幕上的理想位置
-                // 如果球向上跳 (vy < 0)，我们希望球在屏幕靠下的位置，这样能看到上面。
-                // 如果球向下落 (vy > 0)，我们希望球在屏幕靠上的位置，这样能看到下面。
+                // 2. 垂直跟随：解决盲跳的核心逻辑
+                // 我们通过调整摄像机的目标Y值，来决定把球画在屏幕的哪个高度。
                 
-                // 基础位置：屏幕高度的 60% 处 (稍微偏下，适合平台跳跃)
-                const baseScreenY = this.height * 0.6;
+                // 默认位置：球在屏幕偏下方 (65%的高度)，这样上方视野开阔，适合向上跳
+                let screenRatioY = 0.65; 
                 
-                // 速度偏移：根据垂直速度调整球在屏幕上的位置
-                // 速度越快，偏移越大。
-                const velocityOffset = target.vy * 12; 
+                // 动态调整：
+                if (target.vy < -2) {
+                    // 向上跳：把球压得更低 (80%的高度)，最大化上方视野
+                    // 根据速度平滑过渡
+                    const intensity = Math.min(1, Math.abs(target.vy) / 15);
+                    screenRatioY = 0.65 + (0.2 * intensity); // 0.65 -> 0.85
+                } else if (target.vy > 2) {
+                    // 向下落：把球推高 (30%的高度)，最大化下方视野
+                    const intensity = Math.min(1, Math.abs(target.vy) / 15);
+                    screenRatioY = 0.65 - (0.35 * intensity); // 0.65 -> 0.3
+                }
                 
-                // 目标摄像机Y = 目标物体Y - (屏幕内相对位置 + 速度偏移)
-                // 限制偏移量，防止镜头剧烈抖动
-                let targetScreenPos = baseScreenY - Math.max(-200, Math.min(200, velocityOffset));
-                
-                this.targetY = target.y - targetScreenPos;
+                // 计算摄像机左上角的理想Y坐标
+                // CameraY = BallY - (ScreenHeight * Ratio)
+                this.targetY = target.y - (this.height * screenRatioY);
 
-                // 平滑过渡 (Lerp)
-                this.x += (this.targetX - this.x) * 0.08;
-                this.y += (this.targetY - this.y) * 0.08;
+                // 3. 平滑过渡
+                this.x += (this.targetX - this.x) * 0.1;
+                
+                // Y轴响应速度：下落时(看地板)需要非常快，上升时可以稍慢
+                const lerpY = target.vy > 0 ? 0.15 : 0.08;
+                this.y += (this.targetY - this.y) * lerpY;
                 
                 // 边界限制
                 if(this.x < -200) this.x = -200;
@@ -293,23 +303,14 @@
                 const w = canvas.width;
                 const h = canvas.height;
                 
-                // 1. 游戏内背景 (回归上一版)
-                if (gameState.screen === 'PLAYING' || gameState.screen === 'GAMEOVER' || gameState.screen === 'WIN' || gameState.screen === 'LEVEL_COMPLETE') {
-                    const grd = ctx.createLinearGradient(0, 0, 0, h);
-                    grd.addColorStop(0, '#020617'); // slate-950
-                    grd.addColorStop(1, '#1e293b'); // slate-800
-                    ctx.fillStyle = grd;
-                    ctx.fillRect(0, 0, w, h);
-                } else {
-                    // 首页背景 (带深色渐变)
-                    const grd = ctx.createLinearGradient(0, 0, 0, h);
-                    grd.addColorStop(0, '#020617'); 
-                    grd.addColorStop(1, '#172554'); 
-                    ctx.fillStyle = grd;
-                    ctx.fillRect(0, 0, w, h);
-                }
+                // 统一使用深空渐变背景 (回归上一版视觉)
+                const grd = ctx.createLinearGradient(0, 0, 0, h);
+                grd.addColorStop(0, '#020617'); // slate-950
+                grd.addColorStop(1, '#1e293b'); // slate-800
+                ctx.fillStyle = grd;
+                ctx.fillRect(0, 0, w, h);
 
-                // 2. 星星 (通用)
+                // 星星
                 ctx.save();
                 ctx.translate(-camX * 0.05, -camY * 0.05);
                 ctx.fillStyle = 'white';
@@ -322,7 +323,7 @@
                 });
                 ctx.restore();
 
-                // 3. 3D 透视网格 (仅首页显示)
+                // 透视网格：仅在首页(START)显示
                 if (gameState.screen === 'START') {
                     ctx.save();
                     const perspectiveY = h * 0.4; 
@@ -372,13 +373,11 @@
                     return;
                 }
 
-                // 拖尾
                 if (gameState.time % 2 === 0 && (Math.abs(this.vx) > 1 || Math.abs(this.vy) > 1)) {
                     this.trail.push({x: this.x, y: this.y, alpha: 0.6, r: this.radius});
                     if (this.trail.length > 8) this.trail.shift();
                 }
 
-                // 控制逻辑
                 if (this.autoMode) {
                     this.vx = 4;
                     if (this.isGrounded) this.jump(13);
@@ -389,14 +388,11 @@
 
                     if (gameState.keys.space && (this.isGrounded || this.canDoubleJump)) {
                         gameState.charging = true;
-                        
-                        // 空中蓄力粒子
                         if (!this.isGrounded) {
                             if (Math.random() < 0.5) createParticles(this.x + (Math.random()-0.5)*20, this.y + this.radius, 1, '#60a5fa'); 
                         } else {
                             if (Math.random() < 0.3) createParticles(this.x + (Math.random()-0.5)*20, this.y + this.radius, 1, '#fbbf24');
                         }
-
                         if (gameState.chargePower < MAX_JUMP_FORCE) gameState.chargePower += JUMP_CHARGE_RATE;
                         const squashFactor = 1 - (gameState.chargePower / MAX_JUMP_FORCE) * 0.4;
                         this.squashY = squashFactor;
@@ -418,7 +414,6 @@
 
                 this.vy += GRAVITY;
                 this.vx *= this.isGrounded ? FRICTION : AIR_RESISTANCE;
-                
                 if (this.vx > MAX_SPEED_X) this.vx = MAX_SPEED_X;
                 if (this.vx < -MAX_SPEED_X) this.vx = -MAX_SPEED_X;
 
@@ -612,23 +607,24 @@
 
         const generateEasyLevels = () => {
             const levels = [];
-            // 简单模式第1关：教学
             levels.push({
                 start: {x: 50, y: 300},
                 platforms: [
                     {x: -100, y: 400, w: 500, h: 200, type: 'normal'},
-                    {x: 50, y: 300, w: "按住屏幕蓄力，左右滑动移动，松开起跳", h: 0, type: 'text'},
+                    {x: 50, y: 300, w: "简单模式 - 教学关", h: 0, type: 'text'},
+                    {x: 50, y: 340, w: "按住屏幕蓄力，左右滑动移动，松开起跳", h: 0, type: 'text'},
                     {x: 400, y: 350, w: 300, h: 200, type: 'normal'}, 
                     {x: 800, y: 300, w: 200, h: 200, type: 'normal'}, 
                     {x: 1100, y: 220, w: 60, h: 80, type: 'goal'}
                 ]
             });
-            // 简单模式后续
-            for(let i=2; i<=10; i++) {
-                const len = 1500 + i * 200; 
-                const hasSpikes = i > 2; 
-                const hasFragile = i > 4;
-                const hasSaws = i > 6;
+            let baseLength = 1500;
+            for(let i=2; i<=20; i++) {
+                const len = baseLength * Math.pow(1.3, i - 1);
+                const spikeProb = Math.min(0.5, 0.2 + i * 0.02);
+                const sawProb = i > 5 ? Math.min(0.3, 0.1 + i * 0.01) : 0;
+                const fragileProb = i > 3 ? Math.min(0.3, 0.1 + i * 0.01) : 0;
+                
                 let plats = [
                     {x: -100, y: 500, w: 400, h: 200, type: 'normal'},
                     {x: 50, y: 350, w: `第 ${i} 关`, h: 0, type: 'text'}
@@ -638,11 +634,11 @@
                     const gap = 120 + Math.random() * 80;
                     const heightVar = (Math.random() - 0.5) * 80;
                     const w = 100 + Math.random() * 100;
-                    if (hasSaws && Math.random() < 0.2) plats.push({x: cx + gap/2, y: 450 + heightVar, w: 0, h: 0, type: 'saw', radius: 25});
-                    if (hasFragile && Math.random() < 0.3) plats.push({x: cx + gap, y: 500 + heightVar, w: w, h: 50, type: 'fragile'});
+                    if (Math.random() < sawProb) plats.push({x: cx + gap/2, y: 450 + heightVar, w: 0, h: 0, type: 'saw', radius: 25});
+                    if (Math.random() < fragileProb) plats.push({x: cx + gap, y: 500 + heightVar, w: w, h: 50, type: 'fragile'});
                     else {
                         plats.push({x: cx + gap, y: 500 + heightVar, w: w, h: 50, type: 'normal'});
-                        if (hasSpikes && Math.random() < 0.3) plats.push({x: cx + gap/2, y: 600, w: gap, h: 50, type: 'spike'});
+                        if (Math.random() < spikeProb) plats.push({x: cx + gap/2, y: 600, w: gap, h: 50, type: 'spike'});
                     }
                     cx += gap + w;
                 }
@@ -658,7 +654,8 @@
                 start: {x: 50, y: 300},
                 platforms: [
                     {x: -100, y: 400, w: 500, h: 200, type: 'normal'},
-                    {x: 50, y: 300, w: "困难模式：小心陷阱，尖刺侧面可反弹", h: 0, type: 'text'},
+                    {x: 50, y: 300, w: "困难模式 - 教学关", h: 0, type: 'text'},
+                    {x: 50, y: 340, w: "尖刺侧面和底部是安全的，可以反弹", h: 0, type: 'text'},
                     {x: 400, y: 350, w: 200, h: 50, type: 'normal'}, 
                     {x: 650, y: 350, w: 250, h: 50, type: 'normal'},
                     {x: 950, y: 300, w: 60, h: 20, type: 'fragile'},
@@ -680,11 +677,24 @@
                     {x: 900, y: 500, w: 300, h: 50, type: 'normal'},
                     {x: 1050, y: 450, w: 0, h: 0, type: 'saw', radius: 40},
                     {x: 1250, y: 450, w: 0, h: 0, type: 'saw', radius: 40},
-                    {x: 1450, y: 600, w: 400, h: 50, type: 'spike'}, 
-                    {x: 1550, y: 420, w: 150, h: 20, type: 'normal'}, 
-                    {x: 1800, y: 300, w: 80, h: 20, type: 'normal'}, 
-                    {x: 2000, y: 200, w: 200, h: 50, type: 'normal'},
-                    {x: 2100, y: 120, w: 60, h: 80, type: 'goal'}
+                    {x: 1450, y: 450, w: 0, h: 0, type: 'saw', radius: 40},
+                    {x: 1650, y: 600, w: 800, h: 50, type: 'spike'}, 
+                    {x: 1750, y: 400, w: 60, h: 20, type: 'normal'},
+                    {x: 1950, y: 300, w: 60, h: 20, type: 'normal'},
+                    {x: 2150, y: 400, w: 60, h: 20, type: 'normal'},
+                    {x: 2350, y: 300, w: 60, h: 20, type: 'normal'},
+                    {x: 2500, y: 500, w: 200, h: 50, type: 'normal'},
+                    {x: 2750, y: 400, w: 50, h: 20, type: 'normal'},
+                    {x: 2750, y: 250, w: 50, h: 20, type: 'normal'},
+                    {x: 2900, y: 150, w: 50, h: 20, type: 'normal'},
+                    {x: 3100, y: 150, w: 100, h: 20, type: 'normal'},
+                    {x: 3300, y: 600, w: 200, h: 50, type: 'normal'},
+                    {x: 3200, y: 350, w: 0, h: 0, type: 'saw', radius: 50}, 
+                    {x: 3600, y: 500, w: 100, h: 20, type: 'normal'},
+                    {x: 3800, y: 400, w: 100, h: 20, type: 'normal'},
+                    {x: 4000, y: 300, w: 100, h: 20, type: 'normal'},
+                    {x: 4200, y: 200, w: 200, h: 50, type: 'normal'},
+                    {x: 4300, y: 120, w: 60, h: 80, type: 'goal'}
                 ]
             }
         ];
@@ -709,9 +719,7 @@
 
             startDemoMode: function() {
                 gameState.screen = 'START';
-                // 开启首页特效
-                if(crtOverlay) crtOverlay.style.opacity = '1';
-                
+                if(crtOverlay) crtOverlay.style.opacity = '1'; // 显示复古滤镜
                 this.loadLevelData(demoLevel); 
                 this.ball.autoMode = true;
                 topInfoBar.style.display = 'none';
@@ -726,10 +734,7 @@
                 overlay.style.display = 'none'; 
                 topInfoBar.style.display = 'flex';
                 topControls.style.display = 'flex';
-                
-                // 关闭首页特效
-                if(crtOverlay) crtOverlay.style.opacity = '0';
-                
+                if(crtOverlay) crtOverlay.style.opacity = '0'; // 隐藏复古滤镜
                 this.loadLevel(0);
             },
 
@@ -818,7 +823,6 @@
                     if (distance < ball.radius) {
                         if (p.type === 'spike') {
                             const hitTop = ball.vy > 0 && ball.y < p.y + 15; 
-                            
                             if (hitTop) {
                                 if (!ball.autoMode) this.gameOver("接触危险尖刺");
                                 else ball.dead = true;
