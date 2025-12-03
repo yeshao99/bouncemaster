@@ -39,7 +39,7 @@
 
         /* --- 视觉特效 --- */
         
-        /* 复古扫描线遮罩 (仅在首页显示，通过 opacity 控制显隐) */
+        /* 复古扫描线遮罩 */
         .crt-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
@@ -48,7 +48,7 @@
             z-index: 20;
             box-shadow: inset 0 0 100px rgba(0,0,0,0.7);
             transition: opacity 0.5s ease;
-            opacity: 1; /* 默认显示 */
+            opacity: 1; 
         }
 
         /* 蓄力条 */
@@ -75,7 +75,7 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        /* 标题特效 (Glitch) - 仅用于首页遮罩层 */
+        /* 标题特效 */
         .title-text {
             font-size: 5rem;
             font-weight: 900;
@@ -83,9 +83,7 @@
             color: white;
             text-transform: uppercase;
             position: relative;
-            text-shadow: 0.05em 0 0 rgba(255,0,0,0.75),
-                        -0.025em -0.05em 0 rgba(0,255,0,0.75),
-                        0.025em 0.05em 0 rgba(0,0,255,0.75);
+            text-shadow: 0.05em 0 0 rgba(255,0,0,0.75), -0.025em -0.05em 0 rgba(0,255,0,0.75), 0.025em 0.05em 0 rgba(0,0,255,0.75);
             animation: glitch 2s infinite;
         }
         @keyframes glitch {
@@ -123,7 +121,7 @@
     <!-- 游戏画布 -->
     <canvas id="gameCanvas"></canvas>
     
-    <!-- 复古扫描线遮罩 (默认显示，JS控制隐藏) -->
+    <!-- 复古扫描线遮罩 -->
     <div id="crtOverlay" class="crt-overlay"></div>
 
     <!-- 游戏UI层 -->
@@ -218,7 +216,7 @@
         const MIN_JUMP_FORCE = 5; 
         
         const gameState = {
-            screen: 'START', 
+            screen: 'START', // START, PLAYING, GAMEOVER, WIN, LEVEL_COMPLETE
             mode: 'easy', 
             currentLevel: 0,
             charging: false,
@@ -229,14 +227,13 @@
             touchCurrentX: 0
         };
 
-        // --- 摄像机系统 (智能运镜 2.0 - 彻底解决盲跳) ---
+        // --- 摄像机系统 ---
         const camera = {
             x: 0, y: 0, width: 0, height: 0,
             targetX: 0, targetY: 0,
             
             follow: function(target) {
                 if (gameState.screen === 'START') {
-                    // 演示模式：简单平移
                     this.targetX = target.x - this.width / 2;
                     this.targetY = target.y - this.height / 2;
                     this.x += (this.targetX - this.x) * 0.1;
@@ -244,43 +241,18 @@
                     return;
                 }
 
-                // --- 游戏模式：智能构图 ---
-                
-                // 1. 水平跟随：稍微看向运动前方
-                // 如果球向右跑，相机就往右看多一点，反之亦然
+                // 智能运镜：预判
                 const lookAheadX = target.vx * 20; 
                 this.targetX = target.x + lookAheadX - this.width * 0.4; 
                 
-                // 2. 垂直跟随：解决盲跳的核心逻辑
-                // 我们通过调整摄像机的目标Y值，来决定把球画在屏幕的哪个高度。
-                
-                // 默认位置：球在屏幕偏下方 (65%的高度)，这样上方视野开阔，适合向上跳
-                let screenRatioY = 0.65; 
-                
-                // 动态调整：
-                if (target.vy < -2) {
-                    // 向上跳：把球压得更低 (80%的高度)，最大化上方视野
-                    // 根据速度平滑过渡
-                    const intensity = Math.min(1, Math.abs(target.vy) / 15);
-                    screenRatioY = 0.65 + (0.2 * intensity); // 0.65 -> 0.85
-                } else if (target.vy > 2) {
-                    // 向下落：把球推高 (30%的高度)，最大化下方视野
-                    const intensity = Math.min(1, Math.abs(target.vy) / 15);
-                    screenRatioY = 0.65 - (0.35 * intensity); // 0.65 -> 0.3
-                }
-                
-                // 计算摄像机左上角的理想Y坐标
-                // CameraY = BallY - (ScreenHeight * Ratio)
-                this.targetY = target.y - (this.height * screenRatioY);
+                const baseScreenY = this.height * 0.6;
+                const velocityOffset = target.vy * 12; 
+                let targetScreenPos = baseScreenY - Math.max(-200, Math.min(200, velocityOffset));
+                this.targetY = target.y - targetScreenPos;
 
-                // 3. 平滑过渡
-                this.x += (this.targetX - this.x) * 0.1;
+                this.x += (this.targetX - this.x) * 0.08;
+                this.y += (this.targetY - this.y) * 0.08;
                 
-                // Y轴响应速度：下落时(看地板)需要非常快，上升时可以稍慢
-                const lerpY = target.vy > 0 ? 0.15 : 0.08;
-                this.y += (this.targetY - this.y) * lerpY;
-                
-                // 边界限制
                 if(this.x < -200) this.x = -200;
             }
         };
@@ -303,14 +275,18 @@
                 const w = canvas.width;
                 const h = canvas.height;
                 
-                // 统一使用深空渐变背景 (回归上一版视觉)
                 const grd = ctx.createLinearGradient(0, 0, 0, h);
-                grd.addColorStop(0, '#020617'); // slate-950
-                grd.addColorStop(1, '#1e293b'); // slate-800
+                grd.addColorStop(0, '#020617'); 
+                grd.addColorStop(1, '#1e293b'); 
+                
+                // 首页稍微深一点
+                if (gameState.screen === 'START') {
+                    grd.addColorStop(1, '#172554');
+                }
+                
                 ctx.fillStyle = grd;
                 ctx.fillRect(0, 0, w, h);
 
-                // 星星
                 ctx.save();
                 ctx.translate(-camX * 0.05, -camY * 0.05);
                 ctx.fillStyle = 'white';
@@ -323,24 +299,21 @@
                 });
                 ctx.restore();
 
-                // 透视网格：仅在首页(START)显示
+                // 首页网格
                 if (gameState.screen === 'START') {
                     ctx.save();
                     const perspectiveY = h * 0.4; 
                     ctx.beginPath();
                     ctx.strokeStyle = 'rgba(236, 72, 153, 0.15)'; 
                     ctx.lineWidth = 1;
-                    
                     const spacing = 150;
                     const totalLines = Math.ceil(w / spacing) + 5;
                     const moveX = -camX * 0.5 % spacing;
-                    
                     for(let i = -5; i < totalLines; i++) {
                         const x = i * spacing + moveX;
                         ctx.moveTo(x, h);
                         ctx.lineTo(x + (x - w/2) * 0.5, perspectiveY); 
                     }
-                    
                     const gridTime = (gameState.time * 2) % 100;
                     for(let i = 0; i < 20; i++) {
                         const y = h - (i * i * 3) + (gridTime * (i*0.1)); 
@@ -368,6 +341,10 @@
                 this.autoMode = false;
             }
             update() {
+                // *** 核心修复：如果不是游戏中且不是演示模式，停止物理更新 ***
+                // 这能防止过关后小球继续下落导致状态错乱
+                if (gameState.screen !== 'PLAYING' && !this.autoMode) return;
+
                 if (this.dead) {
                     if (this.autoMode) this.resetDemo();
                     return;
@@ -414,12 +391,15 @@
 
                 this.vy += GRAVITY;
                 this.vx *= this.isGrounded ? FRICTION : AIR_RESISTANCE;
+                
                 if (this.vx > MAX_SPEED_X) this.vx = MAX_SPEED_X;
                 if (this.vx < -MAX_SPEED_X) this.vx = -MAX_SPEED_X;
 
                 this.x += this.vx; this.y += this.vy;
                 
-                if (this.y > camera.y + camera.height + 300) {
+                // 掉落判定：增加绝对深度限制，防止无限掉落
+                // 摄像机判定 + 绝对Y轴判定 (例如 Y > 2000)
+                if (this.y > camera.y + camera.height + 300 || this.y > 3000) {
                     if (this.autoMode) this.resetDemo();
                     else game.gameOver("坠入深渊");
                 }
@@ -719,7 +699,7 @@
 
             startDemoMode: function() {
                 gameState.screen = 'START';
-                if(crtOverlay) crtOverlay.style.opacity = '1'; // 显示复古滤镜
+                if(crtOverlay) crtOverlay.style.opacity = '1'; 
                 this.loadLevelData(demoLevel); 
                 this.ball.autoMode = true;
                 topInfoBar.style.display = 'none';
@@ -734,7 +714,7 @@
                 overlay.style.display = 'none'; 
                 topInfoBar.style.display = 'flex';
                 topControls.style.display = 'flex';
-                if(crtOverlay) crtOverlay.style.opacity = '0'; // 隐藏复古滤镜
+                if(crtOverlay) crtOverlay.style.opacity = '0'; 
                 this.loadLevel(0);
             },
 
@@ -747,7 +727,16 @@
                 gameState.currentLevel = levelIndex;
                 levelDisplay.textContent = levelIndex + 1;
                 modeDisplay.textContent = this.mode === 'easy' ? '简单' : '困难';
+                
                 this.loadLevelData(levels[levelIndex]);
+                
+                // *** 核心修复：强制重置摄像机位置 ***
+                // 这样进入新关卡时，摄像机已经在正确位置，不会“滑”过来
+                camera.x = this.ball.x - camera.width * 0.4;
+                camera.y = this.ball.y - camera.height * 0.6;
+                camera.targetX = camera.x;
+                camera.targetY = camera.y;
+
                 this.showScreen('PLAYING');
             },
 
@@ -797,6 +786,9 @@
             },
 
             checkCollisions: function() {
+                // *** 核心修复：非游戏状态下不检测碰撞 ***
+                if (gameState.screen !== 'PLAYING' && !this.ball.autoMode) return;
+
                 const ball = this.ball;
                 if (ball.dead) return;
                 ball.isGrounded = false;
