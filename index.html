@@ -39,7 +39,7 @@
 
         /* --- 视觉特效 --- */
         
-        /* 复古扫描线遮罩 */
+        /* 复古扫描线遮罩 (仅在首页显示) */
         .crt-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
@@ -133,12 +133,12 @@
                 <span id="levelDisplay" class="text-xl text-white">1</span>
             </div>
             <div id="topControls" class="flex space-x-2 pointer-events-auto" style="display: none;">
-                <button onclick="game.showScreen('START')" class="btn glass-panel hover:bg-white/10 text-white p-3 rounded-full shadow-lg">
+                <button onclick="event.stopPropagation(); game.showScreen('START')" class="btn glass-panel hover:bg-white/10 text-white p-3 rounded-full shadow-lg">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                     </svg>
                 </button>
-                <button onclick="game.resetLevel()" class="btn glass-panel hover:bg-white/10 text-white p-3 rounded-full shadow-lg">
+                <button onclick="event.stopPropagation(); game.resetLevel()" class="btn glass-panel hover:bg-white/10 text-white p-3 rounded-full shadow-lg">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
@@ -164,7 +164,7 @@
             </div>
             
             <div id="startMenuButtons" class="w-full flex flex-col gap-5 px-4">
-                <button onclick="game.startMode('easy')" class="mode-card btn w-full py-5 bg-gradient-to-r from-cyan-600/80 to-blue-600/80 rounded-2xl shadow-lg flex items-center justify-center gap-4 group">
+                <button onclick="event.stopPropagation(); game.startMode('easy')" class="mode-card btn w-full py-5 bg-gradient-to-r from-cyan-600/80 to-blue-600/80 rounded-2xl shadow-lg flex items-center justify-center gap-4 group">
                     <span class="text-3xl group-hover:scale-110 transition-transform">🌱</span>
                     <div class="flex flex-col items-start">
                         <span class="text-2xl font-bold tracking-widest text-white">简单模式</span>
@@ -172,7 +172,7 @@
                     </div>
                 </button>
 
-                <button onclick="game.startMode('hard')" class="mode-card btn w-full py-5 bg-gradient-to-r from-fuchsia-600/80 to-purple-600/80 rounded-2xl shadow-lg flex items-center justify-center gap-4 group">
+                <button onclick="event.stopPropagation(); game.startMode('hard')" class="mode-card btn w-full py-5 bg-gradient-to-r from-fuchsia-600/80 to-purple-600/80 rounded-2xl shadow-lg flex items-center justify-center gap-4 group">
                     <span class="text-3xl group-hover:scale-110 transition-transform">🔥</span>
                     <div class="flex flex-col items-start">
                         <span class="text-2xl font-bold tracking-widest text-white">困难模式</span>
@@ -215,6 +215,7 @@
         const MAX_JUMP_FORCE = 19; 
         const MIN_JUMP_FORCE = 5; 
         
+        // 游戏全局状态 (包括模式，移除 this 上下文依赖)
         const gameState = {
             screen: 'START', // START, PLAYING, GAMEOVER, WIN, LEVEL_COMPLETE
             mode: 'easy', 
@@ -227,12 +228,13 @@
             touchCurrentX: 0
         };
 
-        // --- 摄像机系统 ---
+        // --- 摄像机系统 (智能运镜 3.0 - 激进视野预判) ---
         const camera = {
             x: 0, y: 0, width: 0, height: 0,
             targetX: 0, targetY: 0,
             
             follow: function(target) {
+                // 演示模式：简单平移
                 if (gameState.screen === 'START') {
                     this.targetX = target.x - this.width / 2;
                     this.targetY = target.y - this.height / 2;
@@ -241,17 +243,36 @@
                     return;
                 }
 
-                // 智能运镜：预判
+                // 游戏模式：智能构图
+                
+                // 1. 水平跟随
                 const lookAheadX = target.vx * 20; 
                 this.targetX = target.x + lookAheadX - this.width * 0.4; 
                 
-                const baseScreenY = this.height * 0.6;
-                const velocityOffset = target.vy * 12; 
-                let targetScreenPos = baseScreenY - Math.max(-200, Math.min(200, velocityOffset));
-                this.targetY = target.y - targetScreenPos;
+                // 2. 垂直跟随：解决盲跳的核心
+                // 默认位置：屏幕高度 65% (偏下)
+                let screenRatioY = 0.65; 
+                
+                // 动态调整：
+                if (target.vy < -2) {
+                    // 向上跳：球在 85% 位置 (压低)，看天花板
+                    screenRatioY = 0.85; 
+                } else if (target.vy > 2) {
+                    // 向下落：球在 30% 位置 (推高)，看地板 (解决下落盲区)
+                    // 加大这个比例，让球更靠上
+                    screenRatioY = 0.3; 
+                }
+                
+                // 目标Y
+                const idealY = target.y - (this.height * screenRatioY);
+                this.targetY = idealY;
 
-                this.x += (this.targetX - this.x) * 0.08;
-                this.y += (this.targetY - this.y) * 0.08;
+                // 3. 平滑过渡
+                this.x += (this.targetX - this.x) * 0.1;
+                
+                // Y轴响应速度：下落时必须非常快，否则球会飞出屏幕
+                const lerpY = target.vy > 0 ? 0.2 : 0.08; 
+                this.y += (this.targetY - this.y) * lerpY;
                 
                 if(this.x < -200) this.x = -200;
             }
@@ -279,7 +300,6 @@
                 grd.addColorStop(0, '#020617'); 
                 grd.addColorStop(1, '#1e293b'); 
                 
-                // 首页稍微深一点
                 if (gameState.screen === 'START') {
                     grd.addColorStop(1, '#172554');
                 }
@@ -299,7 +319,6 @@
                 });
                 ctx.restore();
 
-                // 首页网格
                 if (gameState.screen === 'START') {
                     ctx.save();
                     const perspectiveY = h * 0.4; 
@@ -341,8 +360,7 @@
                 this.autoMode = false;
             }
             update() {
-                // *** 核心修复：如果不是游戏中且不是演示模式，停止物理更新 ***
-                // 这能防止过关后小球继续下落导致状态错乱
+                // 状态卫兵：防止过关后继续物理模拟
                 if (gameState.screen !== 'PLAYING' && !this.autoMode) return;
 
                 if (this.dead) {
@@ -397,8 +415,6 @@
 
                 this.x += this.vx; this.y += this.vy;
                 
-                // 掉落判定：增加绝对深度限制，防止无限掉落
-                // 摄像机判定 + 绝对Y轴判定 (例如 Y > 2000)
                 if (this.y > camera.y + camera.height + 300 || this.y > 3000) {
                     if (this.autoMode) this.resetDemo();
                     else game.gameOver("坠入深渊");
@@ -570,7 +586,7 @@
             }
         }
 
-        // --- 关卡设计 ---
+        // --- 关卡数据 ---
         const demoLevel = {
              start: {x: 0, y: 400},
              platforms: [
@@ -710,7 +726,7 @@
             },
 
             startMode: function(mode) {
-                this.mode = mode;
+                gameState.mode = mode; // 修复：使用全局状态保存模式
                 overlay.style.display = 'none'; 
                 topInfoBar.style.display = 'flex';
                 topControls.style.display = 'flex';
@@ -719,19 +735,18 @@
             },
 
             loadLevel: function(levelIndex) {
-                const levels = (this.mode === 'easy' ? easyLevels : hardLevels);
+                const levels = (gameState.mode === 'easy' ? easyLevels : hardLevels);
                 if (levelIndex >= levels.length) {
                     this.showScreen('WIN', "通关！");
                     return;
                 }
                 gameState.currentLevel = levelIndex;
                 levelDisplay.textContent = levelIndex + 1;
-                modeDisplay.textContent = this.mode === 'easy' ? '简单' : '困难';
+                modeDisplay.textContent = gameState.mode === 'easy' ? '简单' : '困难';
                 
                 this.loadLevelData(levels[levelIndex]);
                 
-                // *** 核心修复：强制重置摄像机位置 ***
-                // 这样进入新关卡时，摄像机已经在正确位置，不会“滑”过来
+                // 摄像机重置
                 camera.x = this.ball.x - camera.width * 0.4;
                 camera.y = this.ball.y - camera.height * 0.6;
                 camera.targetX = camera.x;
@@ -763,15 +778,18 @@
                 } else {
                     overlay.style.display = 'flex'; overlay.style.pointerEvents = 'auto'; 
                     powerBarContainer.style.display = 'none'; tutorialHint.style.display = 'none';
+                    
+                    // 动态更新按钮功能
                     if (screenName === 'GAMEOVER') {
                         document.getElementById('overlayTitle').textContent = "破碎"; 
                         actionBtn.style.display = 'block'; actionBtn.textContent = "重试";
-                        actionBtn.onclick = () => this.resetLevel();
+                        actionBtn.onclick = (e) => { e.stopPropagation(); this.resetLevel(); };
                         startMenuButtons.style.display = 'none';
                     } else if (screenName === 'WIN') {
                         document.getElementById('overlayTitle').textContent = "传奇";
                         actionBtn.style.display = 'block'; actionBtn.textContent = "返回主菜单";
-                        actionBtn.onclick = () => {
+                        actionBtn.onclick = (e) => {
+                             e.stopPropagation();
                              startMenuButtons.style.display = 'flex'; actionBtn.style.display = 'none';
                              this.showScreen('START');
                         };
@@ -779,14 +797,13 @@
                     } else if (screenName === 'LEVEL_COMPLETE') {
                         document.getElementById('overlayTitle').textContent = "完成";
                         actionBtn.style.display = 'block'; actionBtn.textContent = "下一关";
-                        actionBtn.onclick = () => this.loadLevel(gameState.currentLevel + 1);
+                        actionBtn.onclick = (e) => { e.stopPropagation(); this.loadLevel(gameState.currentLevel + 1); };
                         startMenuButtons.style.display = 'none';
                     }
                 }
             },
 
             checkCollisions: function() {
-                // *** 核心修复：非游戏状态下不检测碰撞 ***
                 if (gameState.screen !== 'PLAYING' && !this.ball.autoMode) return;
 
                 const ball = this.ball;
