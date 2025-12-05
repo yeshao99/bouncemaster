@@ -39,18 +39,6 @@
 
         /* --- 视觉特效 --- */
         
-        /* 复古扫描线遮罩 (仅在首页显示) */
-        .crt-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
-            background-size: 100% 4px;
-            pointer-events: none;
-            z-index: 20;
-            box-shadow: inset 0 0 100px rgba(0,0,0,0.7);
-            transition: opacity 0.5s ease;
-            opacity: 1; 
-        }
-
         /* 蓄力条 */
         .power-bar-container {
             position: absolute; right: 30px; top: 50%;
@@ -65,7 +53,6 @@
             position: absolute; bottom: 0; left: 0; width: 100%; height: 0%;
             background: linear-gradient(to top, #fbbf24, #ef4444);
             transition: height 0.05s linear;
-            box-shadow: 0 0 15px #ef4444;
         }
 
         /* 玻璃拟态面板 */
@@ -75,45 +62,120 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        /* 标题特效 */
+        /* 首页超级标题特效 */
+        .title-container {
+            position: relative;
+            text-align: center;
+            margin-bottom: 4rem;
+            animation: slideDown 0.8s ease-out;
+        }
+        
         .title-text {
             font-size: 5rem;
             font-weight: 900;
             font-style: italic;
-            color: white;
-            text-transform: uppercase;
+            color: transparent;
+            -webkit-text-stroke: 2px rgba(255,255,255,0.8);
+            background: linear-gradient(to bottom, #fff 0%, #a5f3fc 100%);
+            -webkit-background-clip: text;
             position: relative;
-            text-shadow: 0.05em 0 0 rgba(255,0,0,0.75), -0.025em -0.05em 0 rgba(0,255,0,0.75), 0.025em 0.05em 0 rgba(0,0,255,0.75);
-            animation: glitch 2s infinite;
+            z-index: 2;
+            /* 移除文字阴影以提升性能 */
+            filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.4));
+            letter-spacing: -2px;
         }
-        @keyframes glitch {
-            0% { text-shadow: 0.05em 0 0 rgba(255,0,0,0.75), -0.05em -0.025em 0 rgba(0,255,0,0.75), -0.025em 0.05em 0 rgba(0,0,255,0.75); }
-            14% { text-shadow: 0.05em 0 0 rgba(255,0,0,0.75), -0.05em -0.025em 0 rgba(0,255,0,0.75), -0.025em 0.05em 0 rgba(0,0,255,0.75); }
-            15% { text-shadow: -0.05em -0.025em 0 rgba(255,0,0,0.75), 0.025em 0.025em 0 rgba(0,255,0,0.75), -0.05em -0.05em 0 rgba(0,0,255,0.75); }
-            49% { text-shadow: -0.05em -0.025em 0 rgba(255,0,0,0.75), 0.025em 0.025em 0 rgba(0,255,0,0.75), -0.05em -0.05em 0 rgba(0,0,255,0.75); }
-            50% { text-shadow: 0.025em 0.05em 0 rgba(255,0,0,0.75), 0.05em 0 0 rgba(0,255,0,0.75), 0 -0.05em 0 rgba(0,0,255,0.75); }
-            99% { text-shadow: 0.025em 0.05em 0 rgba(255,0,0,0.75), 0.05em 0 0 rgba(0,255,0,0.75), 0 -0.05em 0 rgba(0,0,255,0.75); }
-            100% { text-shadow: -0.025em 0 0 rgba(255,0,0,0.75), -0.025em -0.025em 0 rgba(0,255,0,0.75), -0.025em -0.05em 0 rgba(0,0,255,0.75); }
+        
+        .title-text::after {
+            content: "弹跳大师";
+            position: absolute;
+            left: 0; top: 0; width: 100%; height: 100%;
+            background: linear-gradient(90deg, #22d3ee, #818cf8, #c084fc, #22d3ee);
+            background-size: 200%;
+            -webkit-background-clip: text;
+            color: transparent;
+            z-index: -1;
+            opacity: 0.7;
+            filter: blur(5px); /* 降低模糊半径 */
+            animation: glowMove 3s linear infinite;
         }
+
+        @keyframes glowMove {
+            0% { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+
         .title-sub {
             font-size: 1.2rem;
-            letter-spacing: 0.8em;
-            color: #22d3ee;
-            text-shadow: 0 0 10px #22d3ee;
+            letter-spacing: 1em;
+            color: #93c5fd;
             margin-top: 10px;
+            margin-left: 1em;
+            text-transform: uppercase;
+            font-weight: 300;
+            opacity: 0.8;
+        }
+
+        /* 小球跳跃装饰动画 */
+        .title-bouncer-container {
+            position: absolute; top: -30px; left: 50%; transform: translateX(-50%);
+            width: 100%; height: 60px; pointer-events: none;
+        }
+        .title-ball {
+            position: absolute; width: 24px; height: 24px;
+            background: #fbbf24; border-radius: 50%;
+            box-shadow: 0 0 10px #fbbf24; /* 减少阴影 */
+            animation: bounceAcrossTitle 3s infinite ease-in-out;
+        }
+        @keyframes bounceAcrossTitle {
+            0% { left: 20%; top: 30px; transform: scaleY(1.1); animation-timing-function: ease-out; }
+            25% { left: 35%; top: -10px; transform: scaleY(0.9); animation-timing-function: ease-in; }
+            50% { left: 50%; top: 30px; transform: scaleY(1.1); animation-timing-function: ease-out; }
+            75% { left: 65%; top: -10px; transform: scaleY(0.9); animation-timing-function: ease-in; }
+            100% { left: 80%; top: 30px; transform: scaleY(1.1); animation-timing-function: ease-out; }
         }
 
         /* 模式卡片 */
         .mode-card {
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
+            position: relative;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
             border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            animation: slideUp 0.8s ease-out backwards;
         }
+        .mode-card:nth-child(1) { animation-delay: 0.1s; }
+        .mode-card:nth-child(2) { animation-delay: 0.2s; }
+
+        .mode-card::before {
+            content: '';
+            position: absolute; top: 0; left: 0; width: 4px; height: 100%;
+            background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.5), transparent);
+            opacity: 0.5;
+        }
+        
         .mode-card:hover {
-            transform: translateY(-2px) scale(1.02);
-            border-color: rgba(255,255,255,0.3);
-            box-shadow: 0 0 30px rgba(59, 130, 246, 0.4);
+            transform: translateY(-4px) scale(1.02);
+            border-color: rgba(255,255,255,0.4);
+            box-shadow: 0 10px 20px -5px rgba(0,0,0,0.5);
+            background: rgba(30, 41, 59, 0.7);
         }
+        
+        .mode-card:hover .mode-icon {
+            transform: scale(1.2) rotate(10deg);
+        }
+
+        .mode-icon { transition: transform 0.3s ease; }
+
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-50px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(50px); } to { opacity: 1; transform: translateY(0); } }
+
+        .bg-gradient-overlay {
+            background: radial-gradient(circle at 50% 30%, rgba(56, 189, 248, 0.15) 0%, rgba(15, 23, 42, 0) 60%);
+            animation: pulseBg 5s ease-in-out infinite alternate;
+        }
+        @keyframes pulseBg { from { opacity: 0.5; } to { opacity: 1; } }
+
     </style>
 </head>
 <body class="text-white">
@@ -121,9 +183,6 @@
     <!-- 游戏画布 -->
     <canvas id="gameCanvas"></canvas>
     
-    <!-- 复古扫描线遮罩 -->
-    <div id="crtOverlay" class="crt-overlay"></div>
-
     <!-- 游戏UI层 -->
     <div id="uiLayer" class="game-ui">
         <!-- 顶部栏 -->
@@ -154,34 +213,39 @@
 
     <!-- 主菜单遮罩层 -->
     <div id="overlay" class="fixed inset-0 flex flex-col items-center justify-center z-50 pointer-events-none" style="display: flex;">
-        <div class="absolute inset-0 bg-gradient-to-b from-slate-900/40 via-slate-900/60 to-slate-900/90 backdrop-blur-[2px]"></div>
+        <!-- 动态氛围背景 -->
+        <div class="absolute inset-0 bg-gradient-to-b from-slate-900/60 via-slate-900/80 to-slate-900/95 backdrop-blur-[3px]"></div>
+        <div class="absolute inset-0 bg-gradient-overlay pointer-events-none"></div>
 
         <div class="relative z-30 flex flex-col items-center w-full max-w-md px-6 pointer-events-auto">
             
-            <div class="relative w-full text-center mb-16">
+            <div class="title-container">
+                <div class="title-bouncer-container">
+                    <div class="title-ball"></div>
+                </div>
                 <h1 id="overlayTitle" class="title-text">弹跳大师</h1>
                 <p class="title-sub">BOUNCE MASTER</p>
             </div>
             
-            <div id="startMenuButtons" class="w-full flex flex-col gap-5 px-4">
-                <button onclick="event.stopPropagation(); game.startMode('easy')" class="mode-card btn w-full py-5 bg-gradient-to-r from-cyan-600/80 to-blue-600/80 rounded-2xl shadow-lg flex items-center justify-center gap-4 group">
-                    <span class="text-3xl group-hover:scale-110 transition-transform">🌱</span>
+            <div id="startMenuButtons" class="w-full flex flex-col gap-6 px-2">
+                <button onclick="event.stopPropagation(); game.startMode('easy')" class="mode-card btn w-full py-5 rounded-2xl shadow-lg flex items-center justify-between px-8 group border-l-4 border-l-cyan-400">
                     <div class="flex flex-col items-start">
-                        <span class="text-2xl font-bold tracking-widest text-white">简单模式</span>
-                        <span class="text-xs text-cyan-100 opacity-80">20关 • 休闲闯关</span>
+                        <span class="text-2xl font-bold tracking-widest text-cyan-50">简单模式</span>
+                        <span class="text-xs text-cyan-300/70 font-medium mt-1">20关 • 休闲闯关</span>
                     </div>
+                    <span class="text-4xl mode-icon">🌱</span>
                 </button>
 
-                <button onclick="event.stopPropagation(); game.startMode('hard')" class="mode-card btn w-full py-5 bg-gradient-to-r from-fuchsia-600/80 to-purple-600/80 rounded-2xl shadow-lg flex items-center justify-center gap-4 group">
-                    <span class="text-3xl group-hover:scale-110 transition-transform">🔥</span>
+                <button onclick="event.stopPropagation(); game.startMode('hard')" class="mode-card btn w-full py-5 rounded-2xl shadow-lg flex items-center justify-between px-8 group border-l-4 border-l-fuchsia-500">
                     <div class="flex flex-col items-start">
-                        <span class="text-2xl font-bold tracking-widest text-white">困难模式</span>
-                        <span class="text-xs text-fuchsia-100 opacity-80">2关 • 史诗挑战</span>
+                        <span class="text-2xl font-bold tracking-widest text-fuchsia-50">困难模式</span>
+                        <span class="text-xs text-fuchsia-300/70 font-medium mt-1">2关 • 史诗挑战</span>
                     </div>
+                    <span class="text-4xl mode-icon">🔥</span>
                 </button>
             </div>
 
-            <button id="actionBtn" class="btn hidden w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-full text-xl font-bold shadow-lg mt-8 border border-white/20">
+            <button id="actionBtn" class="btn hidden w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-full text-xl font-bold shadow-lg mt-8 border border-white/20 transform transition-transform hover:scale-105">
                 下一步
             </button>
         </div>
@@ -194,7 +258,6 @@
         
         // DOM 引用
         const overlay = document.getElementById('overlay');
-        const crtOverlay = document.getElementById('crtOverlay');
         const overlayTitle = document.getElementById('overlayTitle');
         const startMenuButtons = document.getElementById('startMenuButtons');
         const actionBtn = document.getElementById('actionBtn');
@@ -215,7 +278,7 @@
         const MAX_JUMP_FORCE = 19; 
         const MIN_JUMP_FORCE = 5; 
         
-        // 游戏全局状态 (包括模式，移除 this 上下文依赖)
+        // 游戏全局状态
         const gameState = {
             screen: 'START', // START, PLAYING, GAMEOVER, WIN, LEVEL_COMPLETE
             mode: 'easy', 
@@ -228,13 +291,14 @@
             touchCurrentX: 0
         };
 
-        // --- 摄像机系统 (智能运镜 3.0 - 激进视野预判) ---
+        // --- 摄像机系统 (智能运镜 4.0 - 平滑视野预判) ---
         const camera = {
             x: 0, y: 0, width: 0, height: 0,
             targetX: 0, targetY: 0,
+            currentRatioY: 0.6, // 当前屏幕垂直比例，用于平滑过渡
             
             follow: function(target) {
-                // 演示模式：简单平移
+                // 演示模式
                 if (gameState.screen === 'START') {
                     this.targetX = target.x - this.width / 2;
                     this.targetY = target.y - this.height / 2;
@@ -243,36 +307,36 @@
                     return;
                 }
 
-                // 游戏模式：智能构图
+                // 游戏模式：平滑构图
                 
                 // 1. 水平跟随
                 const lookAheadX = target.vx * 20; 
                 this.targetX = target.x + lookAheadX - this.width * 0.4; 
                 
-                // 2. 垂直跟随：解决盲跳的核心
-                // 默认位置：屏幕高度 65% (偏下)
-                let screenRatioY = 0.65; 
+                // 2. 垂直跟随
+                let targetRatioY = 0.6; // 默认：球在屏幕中间偏下
                 
-                // 动态调整：
                 if (target.vy < -2) {
-                    // 向上跳：球在 85% 位置 (压低)，看天花板
-                    screenRatioY = 0.85; 
+                    // 向上跳：球在屏幕底部 80% 处，看天
+                    targetRatioY = 0.8; 
                 } else if (target.vy > 2) {
-                    // 向下落：球在 30% 位置 (推高)，看地板 (解决下落盲区)
-                    // 加大这个比例，让球更靠上
-                    screenRatioY = 0.3; 
+                    // 向下落：球在屏幕顶部 25% 处，看地
+                    // 解决盲跳的关键：大幅度向下看
+                    targetRatioY = 0.25; 
                 }
                 
-                // 目标Y
-                const idealY = target.y - (this.height * screenRatioY);
+                // 平滑过渡 Ratio，避免镜头瞬间跳跃
+                // 下落时响应快一点(0.1)，上升慢一点(0.05)
+                const ratioLerp = target.vy > 0 ? 0.1 : 0.05;
+                this.currentRatioY += (targetRatioY - this.currentRatioY) * ratioLerp;
+                
+                // 计算目标Y
+                const idealY = target.y - (this.height * this.currentRatioY);
                 this.targetY = idealY;
 
-                // 3. 平滑过渡
+                // 3. 摄像机移动
                 this.x += (this.targetX - this.x) * 0.1;
-                
-                // Y轴响应速度：下落时必须非常快，否则球会飞出屏幕
-                const lerpY = target.vy > 0 ? 0.2 : 0.08; 
-                this.y += (this.targetY - this.y) * lerpY;
+                this.y += (this.targetY - this.y) * 0.1; // 统一平滑度，减少抖动
                 
                 if(this.x < -200) this.x = -200;
             }
@@ -320,22 +384,28 @@
                 ctx.restore();
 
                 if (gameState.screen === 'START') {
+                    // 简化的网格，减少绘制消耗
                     ctx.save();
                     const perspectiveY = h * 0.4; 
                     ctx.beginPath();
                     ctx.strokeStyle = 'rgba(236, 72, 153, 0.15)'; 
                     ctx.lineWidth = 1;
+                    
                     const spacing = 150;
-                    const totalLines = Math.ceil(w / spacing) + 5;
                     const moveX = -camX * 0.5 % spacing;
-                    for(let i = -5; i < totalLines; i++) {
+                    
+                    // 仅绘制视野内的线条
+                    const totalLines = Math.ceil(w / spacing) + 2;
+                    
+                    for(let i = -1; i < totalLines; i++) {
                         const x = i * spacing + moveX;
                         ctx.moveTo(x, h);
                         ctx.lineTo(x + (x - w/2) * 0.5, perspectiveY); 
                     }
+                    
                     const gridTime = (gameState.time * 2) % 100;
-                    for(let i = 0; i < 20; i++) {
-                        const y = h - (i * i * 3) + (gridTime * (i*0.1)); 
+                    for(let i = 0; i < 15; i++) { // 减少横线条数
+                        const y = h - (i * i * 4) + (gridTime * (i*0.1)); 
                         if (y < perspectiveY) continue;
                         ctx.moveTo(0, y);
                         ctx.lineTo(w, y);
@@ -360,7 +430,7 @@
                 this.autoMode = false;
             }
             update() {
-                // 状态卫兵：防止过关后继续物理模拟
+                // 状态卫兵
                 if (gameState.screen !== 'PLAYING' && !this.autoMode) return;
 
                 if (this.dead) {
@@ -368,9 +438,10 @@
                     return;
                 }
 
-                if (gameState.time % 2 === 0 && (Math.abs(this.vx) > 1 || Math.abs(this.vy) > 1)) {
-                    this.trail.push({x: this.x, y: this.y, alpha: 0.6, r: this.radius});
-                    if (this.trail.length > 8) this.trail.shift();
+                // 性能优化：限制拖尾数量和更新频率
+                if (gameState.time % 3 === 0 && (Math.abs(this.vx) > 1 || Math.abs(this.vy) > 1)) {
+                    this.trail.push({x: this.x, y: this.y, alpha: 0.5, r: this.radius});
+                    if (this.trail.length > 6) this.trail.shift(); // 减少最大拖尾数
                 }
 
                 if (this.autoMode) {
@@ -383,10 +454,12 @@
 
                     if (gameState.keys.space && (this.isGrounded || this.canDoubleJump)) {
                         gameState.charging = true;
+                        
+                        // 减少粒子生成频率
                         if (!this.isGrounded) {
-                            if (Math.random() < 0.5) createParticles(this.x + (Math.random()-0.5)*20, this.y + this.radius, 1, '#60a5fa'); 
+                            if (Math.random() < 0.3) createParticles(this.x + (Math.random()-0.5)*20, this.y + this.radius, 1, '#60a5fa'); 
                         } else {
-                            if (Math.random() < 0.3) createParticles(this.x + (Math.random()-0.5)*20, this.y + this.radius, 1, '#fbbf24');
+                            if (Math.random() < 0.2) createParticles(this.x + (Math.random()-0.5)*20, this.y + this.radius, 1, '#fbbf24');
                         }
                         if (gameState.chargePower < MAX_JUMP_FORCE) gameState.chargePower += JUMP_CHARGE_RATE;
                         const squashFactor = 1 - (gameState.chargePower / MAX_JUMP_FORCE) * 0.4;
@@ -396,7 +469,7 @@
                         if (gameState.charging) {
                             if (!this.isGrounded) {
                                 this.canDoubleJump = false;
-                                createParticles(this.x, this.y, 10, '#3b82f6'); 
+                                createParticles(this.x, this.y, 8, '#3b82f6'); // 减少粒子数
                             }
                             this.jump(Math.max(MIN_JUMP_FORCE, gameState.chargePower));
                             gameState.charging = false;
@@ -428,13 +501,15 @@
             jump(force) {
                 this.vy = -force;
                 this.isGrounded = false;
-                createParticles(this.x, this.y + this.radius, 8, '#fff');
+                createParticles(this.x, this.y + this.radius, 6, '#fff'); // 减少粒子数
             }
 
             draw(ctx) {
                 if (this.dead) return;
+                
+                // 绘制拖尾 (无阴影)
                 this.trail.forEach(t => {
-                    t.alpha -= 0.05; t.r *= 0.9;
+                    t.alpha -= 0.08; t.r *= 0.85;
                     if(t.alpha > 0) {
                         ctx.fillStyle = `rgba(56, 189, 248, ${t.alpha})`; 
                         ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI*2); ctx.fill();
@@ -446,21 +521,22 @@
                 ctx.translate(this.x, this.y);
                 ctx.scale(this.squashX, this.squashY);
                 
+                // 性能优化：仅在必要时绘制简单光晕，或完全移除shadowBlur
+                // 使用半透明圆代替 shadowBlur 提升性能
                 if (!this.isGrounded && this.canDoubleJump) {
-                    ctx.shadowBlur = 20; ctx.shadowColor = "#60a5fa"; 
-                } else {
-                    ctx.shadowBlur = 15; ctx.shadowColor = "#22d3ee"; 
+                    ctx.fillStyle = "rgba(96, 165, 250, 0.3)";
+                    ctx.beginPath(); ctx.arc(0, 0, this.radius + 5, 0, Math.PI*2); ctx.fill();
                 }
                 
                 const grd = ctx.createRadialGradient(-4, -4, 2, 0, 0, this.radius);
                 grd.addColorStop(0, '#e0f2fe'); grd.addColorStop(0.5, '#38bdf8'); grd.addColorStop(1, '#0ea5e9'); 
                 
                 ctx.fillStyle = gameState.charging ? `rgb(255, ${200 * (1-gameState.chargePower / MAX_JUMP_FORCE)}, 100)` : grd;
-                if (gameState.charging) ctx.shadowColor = "#fbbf24";
                 
                 ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
                 
-                ctx.shadowBlur = 0; ctx.fillStyle = 'white';
+                // 眼睛
+                ctx.fillStyle = 'white';
                 ctx.beginPath(); ctx.arc(5, -3, 4, 0, Math.PI*2); ctx.fill();
                 ctx.beginPath(); ctx.arc(-5, -3, 4, 0, Math.PI*2); ctx.fill();
                 ctx.fillStyle = '#0f172a';
@@ -476,9 +552,7 @@
             constructor(x, y, w, h, type, props = {}) {
                 this.x = x; this.y = y; this.w = w; this.h = h; this.type = type;
                 this.active = true;
-                
                 this.initialX = x;
-                this.initialY = y;
                 this.crumbleTimer = 0;
                 this.isCrumbling = false;
                 this.angle = 0;
@@ -490,7 +564,7 @@
                     this.crumbleTimer++;
                     if (this.crumbleTimer > 60) {
                         this.active = false;
-                        createParticles(this.x + this.w/2, this.y + this.h/2, 10, '#94a3b8');
+                        createParticles(this.x + this.w/2, this.y + this.h/2, 8, '#94a3b8');
                     }
                 }
                 if (this.type === 'saw') this.angle += 0.1;
@@ -499,6 +573,7 @@
             draw(ctx) {
                 if (!this.active) return;
                 
+                // 性能优化：移除所有 shadowBlur，用颜色层代替
                 if (this.type === 'normal' || this.type === 'fragile') {
                     if (this.type === 'fragile') {
                         if (this.isCrumbling) {
@@ -516,9 +591,9 @@
                     ctx.lineWidth = 2; ctx.strokeStyle = '#334155'; ctx.strokeRect(this.x, this.y, this.w, this.h);
                     
                     if (this.type !== 'fragile') {
-                        ctx.shadowBlur = 10; ctx.shadowColor = '#4ade80'; 
                         ctx.fillStyle = '#4ade80'; ctx.fillRect(this.x, this.y, this.w, 4);
-                        ctx.shadowBlur = 0; 
+                        // 模拟光晕
+                        ctx.fillStyle = 'rgba(74, 222, 128, 0.3)'; ctx.fillRect(this.x, this.y-2, this.w, 2);
                     } else {
                          ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.moveTo(this.x + 10, this.y + 10); ctx.lineTo(this.x + this.w - 10, this.y + this.h - 10); ctx.stroke();
                     }
@@ -527,8 +602,6 @@
                 } else if (this.type === 'spike') {
                     ctx.fillStyle = '#991b1b'; 
                     const spikeWidth = 20; const spikeCount = Math.floor(this.w / spikeWidth);
-                    ctx.save();
-                    ctx.shadowBlur = 10; ctx.shadowColor = '#ef4444'; 
                     ctx.beginPath();
                     for(let i=0; i<spikeCount; i++) {
                         ctx.moveTo(this.x + i * spikeWidth, this.y + this.h);
@@ -537,13 +610,12 @@
                     }
                     const grd = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.h);
                     grd.addColorStop(0, '#fca5a5'); grd.addColorStop(1, '#7f1d1d'); 
-                    ctx.fillStyle = grd; ctx.fill(); ctx.restore();
+                    ctx.fillStyle = grd; ctx.fill();
 
                 } else if (this.type === 'saw') {
                     ctx.save();
                     ctx.translate(this.x, this.y);
                     ctx.rotate(this.angle);
-                    ctx.shadowBlur = 15; ctx.shadowColor = '#ef4444';
                     ctx.fillStyle = '#b91c1c';
                     ctx.beginPath();
                     const teeth = 8; const outerRadius = this.radius; const innerRadius = this.radius * 0.5;
@@ -562,7 +634,9 @@
                     ctx.translate(cx, cy); ctx.rotate(gameState.time * 0.05);
                     ctx.strokeStyle = '#10b981'; ctx.lineWidth = 4; ctx.setLineDash([10, 10]);
                     ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI*2); ctx.stroke();
-                    ctx.shadowBlur = 20; ctx.shadowColor = '#fff'; ctx.fillStyle = '#ecfdf5';
+                    ctx.fillStyle = 'rgba(16, 185, 129, 0.2)'; // 替代阴影
+                    ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#ecfdf5';
                     ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI*2); ctx.fill();
                     ctx.restore();
                 } else if (this.type === 'text') {
@@ -575,8 +649,11 @@
             }
         }
 
+        // 优化粒子系统：对象池或限制数量
         let particles = [];
         function createParticles(x, y, count, color) {
+            // 限制总粒子数
+            if (particles.length > 50) particles.splice(0, 20); 
             for(let i=0; i<count; i++) {
                 particles.push({
                     x: x, y: y,
@@ -715,7 +792,7 @@
 
             startDemoMode: function() {
                 gameState.screen = 'START';
-                if(crtOverlay) crtOverlay.style.opacity = '1'; 
+                // 修复: 移除对 crtOverlay 的引用
                 this.loadLevelData(demoLevel); 
                 this.ball.autoMode = true;
                 topInfoBar.style.display = 'none';
@@ -726,11 +803,11 @@
             },
 
             startMode: function(mode) {
-                gameState.mode = mode; // 修复：使用全局状态保存模式
+                gameState.mode = mode; 
                 overlay.style.display = 'none'; 
                 topInfoBar.style.display = 'flex';
                 topControls.style.display = 'flex';
-                if(crtOverlay) crtOverlay.style.opacity = '0'; 
+                // 修复: 移除对 crtOverlay 的引用
                 this.loadLevel(0);
             },
 
@@ -751,6 +828,7 @@
                 camera.y = this.ball.y - camera.height * 0.6;
                 camera.targetX = camera.x;
                 camera.targetY = camera.y;
+                camera.currentRatioY = 0.6; // 重置平滑参数
 
                 this.showScreen('PLAYING');
             },
@@ -775,11 +853,11 @@
                 if (screenName === 'START') { this.startDemoMode(); return; }
                 if (screenName === 'PLAYING') {
                     overlay.style.display = 'none'; powerBarContainer.style.display = 'block';
+                    // 修复: 移除对 crtOverlay 的引用
                 } else {
                     overlay.style.display = 'flex'; overlay.style.pointerEvents = 'auto'; 
-                    powerBarContainer.style.display = 'none'; tutorialHint.style.display = 'none';
+                    powerBarContainer.style.display = 'none'; 
                     
-                    // 动态更新按钮功能
                     if (screenName === 'GAMEOVER') {
                         document.getElementById('overlayTitle').textContent = "破碎"; 
                         actionBtn.style.display = 'block'; actionBtn.textContent = "重试";
