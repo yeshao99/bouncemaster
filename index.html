@@ -175,17 +175,6 @@
         }
         @keyframes pulseBg { from { opacity: 0.5; } to { opacity: 1; } }
 
-        /* ------------------------------------- */
-        /* 新增：跳跃提示 UI 样式 */
-        /* ------------------------------------- */
-        .jump-hint-panel {
-            min-width: 280px;
-            padding: 1.5rem;
-            border-radius: 1rem;
-            backdrop-filter: blur(8px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-
     </style>
 </head>
 <body class="text-white">
@@ -216,13 +205,6 @@
             </div>
         </div>
         
-        <!-- 新增：跳跃/下落提示面板 -->
-        <div id="jumpHint" class="fixed inset-0 flex items-center justify-center pointer-events-none z-40" style="display: none;">
-            <div class="jump-hint-panel text-center" id="jumpHintContent">
-                <!-- Content injected by JS -->
-            </div>
-        </div>
-
         <!-- 蓄力条 -->
         <div class="power-bar-container" id="powerBarContainer" style="display: none;">
             <div id="powerBar" class="power-bar-fill"></div>
@@ -285,8 +267,6 @@
         const powerBarContainer = document.getElementById('powerBarContainer');
         const topInfoBar = document.getElementById('topInfoBar');
         const topControls = document.getElementById('topControls');
-        const jumpHint = document.getElementById('jumpHint'); 
-        const jumpHintContent = document.getElementById('jumpHintContent'); 
 
         // 物理常量
         const GRAVITY = 0.5; 
@@ -311,11 +291,11 @@
             touchCurrentX: 0
         };
 
-        // --- 摄像机系统 (智能运镜 4.0 - 平滑视野预判) ---
+        // --- 摄像机系统 (智能运镜 4.0 - 平滑视野预判, 减弱垂直预测) ---
         const camera = {
             x: 0, y: 0, width: 0, height: 0,
             targetX: 0, targetY: 0,
-            currentRatioY: 0.6, // 当前屏幕垂直比例，用于平滑过渡
+            currentRatioY: 0.55, // 垂直比例，用于平滑过渡
             
             follow: function(target) {
                 // 演示模式
@@ -333,19 +313,20 @@
                 const lookAheadX = target.vx * 20; 
                 this.targetX = target.x + lookAheadX - this.width * 0.4; 
                 
-                // 2. 垂直跟随
-                let targetRatioY = 0.6; // 默认：球在屏幕中间偏下
-                
-                if (target.vy < -2) {
-                    // 向上跳：球在屏幕底部 80% 处，看天
-                    targetRatioY = 0.8; 
-                } else if (target.vy > 2) {
-                    // 向下落：球在屏幕顶部 20% 处，看地 (更激进地向下看)
-                    targetRatioY = 0.2; 
+                // 2. 垂直跟随 (减弱预测效果)
+                let targetRatioY = 0.55; // 默认：球在屏幕中间略偏下
+                const vyThreshold = 3;
+
+                if (target.vy < -vyThreshold) {
+                    // 向上跳：球在屏幕下方 70% 处，看天 (减弱至 0.7)
+                    targetRatioY = 0.7; 
+                } else if (target.vy > vyThreshold) {
+                    // 向下落：球在屏幕上方 35% 处，看地 (减弱至 0.35)
+                    targetRatioY = 0.35; 
                 }
                 
-                // 平滑过渡 Ratio，避免镜头瞬间跳跃
-                const ratioLerp = target.vy > 0 ? 0.15 : 0.05; // 提高下落时的跟随速度
+                // 平滑过渡 Ratio，使用更小的 lerp 值，减弱跟随速度
+                const ratioLerp = 0.08; 
                 this.currentRatioY += (targetRatioY - this.currentRatioY) * ratioLerp;
                 
                 // 计算目标Y
@@ -539,7 +520,6 @@
                 ctx.translate(this.x, this.y);
                 ctx.scale(this.squashX, this.squashY);
                 
-                // 性能优化：仅在必要时绘制简单光晕，或完全移除shadowBlur
                 // 使用半透明圆代替 shadowBlur 提升性能
                 if (!this.isGrounded && this.canDoubleJump) {
                     ctx.fillStyle = "rgba(96, 165, 250, 0.3)";
@@ -681,7 +661,7 @@
             }
         }
 
-        // --- 关卡数据 ---
+        // --- 关卡数据 (保持不变) ---
         const demoLevel = {
              start: {x: 0, y: 400},
              platforms: [
@@ -815,7 +795,6 @@
                 this.ball.autoMode = true;
                 topInfoBar.style.display = 'none';
                 topControls.style.display = 'none';
-                jumpHint.style.display = 'none'; 
                 overlay.style.display = 'flex';
                 
                 // 关键修复: 启用覆盖层的指针事件，让菜单按钮可点击
@@ -849,10 +828,10 @@
                 
                 // 摄像机重置
                 camera.x = this.ball.x - camera.width * 0.4;
-                camera.y = this.ball.y - camera.height * 0.6;
+                camera.y = this.ball.y - camera.height * 0.55; // 使用新的默认比例
                 camera.targetX = camera.x;
                 camera.targetY = camera.y;
-                camera.currentRatioY = 0.6; // 重置平滑参数
+                camera.currentRatioY = 0.55; // 重置平滑参数
 
                 this.showScreen('PLAYING');
             },
@@ -869,7 +848,6 @@
             gameOver: function(reason) {
                 createParticles(this.ball.x, this.ball.y, 30, '#38bdf8');
                 this.ball.dead = true;
-                jumpHint.style.display = 'none'; 
                 setTimeout(() => this.showScreen('GAMEOVER', reason), 600);
             },
 
@@ -978,45 +956,85 @@
                 }
             },
 
-            updateJumpHint: function() {
-                if (gameState.screen !== 'PLAYING' || !this.ball || this.ball.dead) {
-                    jumpHint.style.display = 'none';
-                    return;
-                }
+            // 新增: 查找下一个非可见平台
+            findNextPlatform: function() {
+                if (!this.ball || this.ball.isGrounded || this.ball.dead) return null;
                 
-                const ball = this.ball;
-                const isFallingFast = ball.vy > 9; // 快速下落阈值
-                const isHighEnough = ball.y < camera.y + camera.height * 0.4; // 判定球是否在屏幕上半部分
+                // 过滤掉当前关卡中在球右侧、且未死亡的平台
+                let candidates = this.platforms.filter(p => 
+                    p.active && 
+                    p.type !== 'text' && 
+                    p.x + p.w / 2 > this.ball.x
+                );
+
+                if (candidates.length === 0) return null;
+
+                // 找到最近的平台（按X轴距离）
+                candidates.sort((a, b) => a.x - b.x);
+
+                const nextPlatform = candidates[0];
                 
-                let hintContent = '';
-                let hintClass = '';
-                let showHint = false;
+                // 检查平台是否在视野内
+                const camRight = camera.x + camera.width;
+                const camBottom = camera.y + camera.height;
+                const camTop = camera.y;
+                
+                const isVisible = (
+                    nextPlatform.x < camRight && 
+                    nextPlatform.x + nextPlatform.w > camera.x && 
+                    nextPlatform.y < camBottom && 
+                    nextPlatform.y + nextPlatform.h > camTop
+                );
+                
+                return isVisible ? null : nextPlatform; // 只有非可见的才返回
+            },
 
-                if (isFallingFast && isHighEnough) {
-                    // 快速下落且球在屏幕上半部分，盲跳风险高
-                    hintContent = `
-                        <p class="text-2xl font-black text-red-300 tracking-wider animate-pulse">危险下落！</p>
-                        <p class="text-md text-red-200 mt-1">请左右调整方向，准备好蓄力/二段跳</p>
-                    `;
-                    hintClass = 'bg-red-900/50 border-red-500';
-                    showHint = true;
-                } else if (ball.canDoubleJump && !ball.isGrounded && ball.vy < 5) {
-                    // 还在空中，二段跳可用
-                    hintContent = `
-                        <p class="text-2xl font-black text-cyan-300 tracking-wider animate-pulse">二段跳就绪</p>
-                        <p class="text-md text-cyan-200 mt-1">长按屏幕/空格键蓄力起跳</p>
-                    `;
-                    hintClass = 'bg-cyan-900/50 border-cyan-500';
-                    showHint = true;
-                }
+            // 新增: 绘制非可见平台提示
+            drawOffScreenHint: function() {
+                const nextPlatform = this.findNextPlatform();
+                if (!nextPlatform) return; 
+                
+                ctx.save();
 
-                if (showHint) {
-                    jumpHint.style.display = 'flex';
-                    jumpHintContent.innerHTML = hintContent;
-                    jumpHintContent.className = `jump-hint-panel text-center ${hintClass}`;
-                } else {
-                    jumpHint.style.display = 'none';
-                }
+                const canvasWidth = canvas.width;
+                const canvasHeight = canvas.height;
+                const platCenterY = nextPlatform.y + nextPlatform.h / 2;
+                
+                // 1. 将世界 Y 坐标转换为屏幕 Y 坐标
+                let screenY = platCenterY - camera.y;
+
+                // 2. 钳制 screen Y，使其停留在屏幕边缘内 (50 像素安全边距)
+                const margin = 50;
+                screenY = Math.max(margin, Math.min(canvasHeight - margin, screenY));
+
+                const hintSize = 10;
+                const indicatorX = canvasWidth - 15; // 屏幕右侧边缘
+
+                // 绘制指示器光晕背景 (Screen Space)
+                ctx.fillStyle = 'rgba(255, 165, 0, 0.15)'; // 柔和的橙色光晕
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = 'rgba(255, 165, 0, 0.8)';
+                ctx.beginPath();
+                ctx.arc(indicatorX, screenY, hintSize * 2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 绘制箭头 (Screen Space)
+                ctx.fillStyle = '#facc15'; // 亮黄色箭头
+                ctx.shadowBlur = 0;
+                ctx.beginPath();
+                ctx.moveTo(indicatorX - hintSize * 1.5, screenY);
+                ctx.lineTo(indicatorX - hintSize * 0.2, screenY - hintSize);
+                ctx.lineTo(indicatorX - hintSize * 0.2, screenY + hintSize);
+                ctx.closePath();
+                ctx.fill();
+                
+                // 绘制中心点 (Screen Space)
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(indicatorX - hintSize * 0.2, screenY, hintSize / 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
             },
 
             update: function() {
@@ -1033,12 +1051,14 @@
                 if (this.ball) camera.follow(this.ball);
                 if (gameState.screen === 'PLAYING') {
                      powerBar.style.height = gameState.charging ? (gameState.chargePower / MAX_JUMP_FORCE * 100) + '%' : '0%';
-                     this.updateJumpHint(); 
                 }
             },
 
             draw: function() {
+                // 1. 绘制背景 (World Space)
                 background.draw(ctx, camera.x, camera.y);
+                
+                // 2. 绘制世界对象 (World Space)
                 ctx.save();
                 ctx.translate(-camera.x, -camera.y);
                 this.platforms.forEach(p => p.draw(ctx));
@@ -1048,7 +1068,12 @@
                     ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
                     ctx.globalAlpha = 1.0;
                 });
-                ctx.restore();
+                ctx.restore(); // 结束世界坐标转换
+
+                // 3. 绘制屏幕提示 (Screen Space)
+                if (gameState.screen === 'PLAYING') {
+                    this.drawOffScreenHint();
+                }
             },
 
             setupInputs: function() {
