@@ -80,7 +80,6 @@
             -webkit-background-clip: text;
             position: relative;
             z-index: 2;
-            /* 移除文字阴影以提升性能 */
             filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.4));
             letter-spacing: -2px;
         }
@@ -95,7 +94,7 @@
             color: transparent;
             z-index: -1;
             opacity: 0.7;
-            filter: blur(5px); /* 降低模糊半径 */
+            filter: blur(5px);
             animation: glowMove 3s linear infinite;
         }
 
@@ -123,7 +122,7 @@
         .title-ball {
             position: absolute; width: 24px; height: 24px;
             background: #fbbf24; border-radius: 50%;
-            box-shadow: 0 0 10px #fbbf24; /* 减少阴影 */
+            box-shadow: 0 0 10px #fbbf24;
             animation: bounceAcrossTitle 3s infinite ease-in-out;
         }
         @keyframes bounceAcrossTitle {
@@ -176,6 +175,17 @@
         }
         @keyframes pulseBg { from { opacity: 0.5; } to { opacity: 1; } }
 
+        /* ------------------------------------- */
+        /* 新增：跳跃提示 UI 样式 */
+        /* ------------------------------------- */
+        .jump-hint-panel {
+            min-width: 280px;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
     </style>
 </head>
 <body class="text-white">
@@ -192,6 +202,7 @@
                 <span id="levelDisplay" class="text-xl text-white">1</span>
             </div>
             <div id="topControls" class="flex space-x-2 pointer-events-auto" style="display: none;">
+                <!-- 修复: 确保点击后能正常回到主菜单，并可以重新点击模式按钮 -->
                 <button onclick="event.stopPropagation(); game.showScreen('START')" class="btn glass-panel hover:bg-white/10 text-white p-3 rounded-full shadow-lg">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -202,6 +213,13 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                 </button>
+            </div>
+        </div>
+        
+        <!-- 新增：跳跃/下落提示面板 -->
+        <div id="jumpHint" class="fixed inset-0 flex items-center justify-center pointer-events-none z-40" style="display: none;">
+            <div class="jump-hint-panel text-center" id="jumpHintContent">
+                <!-- Content injected by JS -->
             </div>
         </div>
 
@@ -267,6 +285,8 @@
         const powerBarContainer = document.getElementById('powerBarContainer');
         const topInfoBar = document.getElementById('topInfoBar');
         const topControls = document.getElementById('topControls');
+        const jumpHint = document.getElementById('jumpHint'); 
+        const jumpHintContent = document.getElementById('jumpHintContent'); 
 
         // 物理常量
         const GRAVITY = 0.5; 
@@ -320,14 +340,12 @@
                     // 向上跳：球在屏幕底部 80% 处，看天
                     targetRatioY = 0.8; 
                 } else if (target.vy > 2) {
-                    // 向下落：球在屏幕顶部 25% 处，看地
-                    // 解决盲跳的关键：大幅度向下看
-                    targetRatioY = 0.25; 
+                    // 向下落：球在屏幕顶部 20% 处，看地 (更激进地向下看)
+                    targetRatioY = 0.2; 
                 }
                 
                 // 平滑过渡 Ratio，避免镜头瞬间跳跃
-                // 下落时响应快一点(0.1)，上升慢一点(0.05)
-                const ratioLerp = target.vy > 0 ? 0.1 : 0.05;
+                const ratioLerp = target.vy > 0 ? 0.15 : 0.05; // 提高下落时的跟随速度
                 this.currentRatioY += (targetRatioY - this.currentRatioY) * ratioLerp;
                 
                 // 计算目标Y
@@ -336,7 +354,7 @@
 
                 // 3. 摄像机移动
                 this.x += (this.targetX - this.x) * 0.1;
-                this.y += (this.targetY - this.y) * 0.1; // 统一平滑度，减少抖动
+                this.y += (this.targetY - this.y) * 0.1; 
                 
                 if(this.x < -200) this.x = -200;
             }
@@ -791,15 +809,22 @@
             },
 
             startDemoMode: function() {
+                // FIX: 确保在主菜单状态下，覆盖层是可点击的
                 gameState.screen = 'START';
-                // 修复: 移除对 crtOverlay 的引用
                 this.loadLevelData(demoLevel); 
                 this.ball.autoMode = true;
                 topInfoBar.style.display = 'none';
                 topControls.style.display = 'none';
+                jumpHint.style.display = 'none'; 
                 overlay.style.display = 'flex';
-                overlay.style.pointerEvents = 'none'; 
-                document.querySelector('#overlay > div.pointer-events-auto').style.pointerEvents = 'auto';
+                
+                // 关键修复: 启用覆盖层的指针事件，让菜单按钮可点击
+                overlay.style.pointerEvents = 'auto'; 
+                
+                // 确保菜单组件是可见的
+                document.getElementById('overlayTitle').textContent = "弹跳大师"; 
+                startMenuButtons.style.display = 'flex';
+                actionBtn.style.display = 'none'; 
             },
 
             startMode: function(mode) {
@@ -807,7 +832,6 @@
                 overlay.style.display = 'none'; 
                 topInfoBar.style.display = 'flex';
                 topControls.style.display = 'flex';
-                // 修复: 移除对 crtOverlay 的引用
                 this.loadLevel(0);
             },
 
@@ -845,6 +869,7 @@
             gameOver: function(reason) {
                 createParticles(this.ball.x, this.ball.y, 30, '#38bdf8');
                 this.ball.dead = true;
+                jumpHint.style.display = 'none'; 
                 setTimeout(() => this.showScreen('GAMEOVER', reason), 600);
             },
 
@@ -852,10 +877,13 @@
                 gameState.screen = screenName;
                 if (screenName === 'START') { this.startDemoMode(); return; }
                 if (screenName === 'PLAYING') {
-                    overlay.style.display = 'none'; powerBarContainer.style.display = 'block';
-                    // 修复: 移除对 crtOverlay 的引用
+                    overlay.style.display = 'none'; 
+                    // 在PLAYING状态下，禁用覆盖层的指针事件，让游戏画布可交互
+                    overlay.style.pointerEvents = 'none';
+                    powerBarContainer.style.display = 'block';
                 } else {
-                    overlay.style.display = 'flex'; overlay.style.pointerEvents = 'auto'; 
+                    overlay.style.display = 'flex'; 
+                    overlay.style.pointerEvents = 'auto'; // 启用覆盖层的指针事件
                     powerBarContainer.style.display = 'none'; 
                     
                     if (screenName === 'GAMEOVER') {
@@ -868,7 +896,6 @@
                         actionBtn.style.display = 'block'; actionBtn.textContent = "返回主菜单";
                         actionBtn.onclick = (e) => {
                              e.stopPropagation();
-                             startMenuButtons.style.display = 'flex'; actionBtn.style.display = 'none';
                              this.showScreen('START');
                         };
                         startMenuButtons.style.display = 'none';
@@ -951,6 +978,47 @@
                 }
             },
 
+            updateJumpHint: function() {
+                if (gameState.screen !== 'PLAYING' || !this.ball || this.ball.dead) {
+                    jumpHint.style.display = 'none';
+                    return;
+                }
+                
+                const ball = this.ball;
+                const isFallingFast = ball.vy > 9; // 快速下落阈值
+                const isHighEnough = ball.y < camera.y + camera.height * 0.4; // 判定球是否在屏幕上半部分
+                
+                let hintContent = '';
+                let hintClass = '';
+                let showHint = false;
+
+                if (isFallingFast && isHighEnough) {
+                    // 快速下落且球在屏幕上半部分，盲跳风险高
+                    hintContent = `
+                        <p class="text-2xl font-black text-red-300 tracking-wider animate-pulse">危险下落！</p>
+                        <p class="text-md text-red-200 mt-1">请左右调整方向，准备好蓄力/二段跳</p>
+                    `;
+                    hintClass = 'bg-red-900/50 border-red-500';
+                    showHint = true;
+                } else if (ball.canDoubleJump && !ball.isGrounded && ball.vy < 5) {
+                    // 还在空中，二段跳可用
+                    hintContent = `
+                        <p class="text-2xl font-black text-cyan-300 tracking-wider animate-pulse">二段跳就绪</p>
+                        <p class="text-md text-cyan-200 mt-1">长按屏幕/空格键蓄力起跳</p>
+                    `;
+                    hintClass = 'bg-cyan-900/50 border-cyan-500';
+                    showHint = true;
+                }
+
+                if (showHint) {
+                    jumpHint.style.display = 'flex';
+                    jumpHintContent.innerHTML = hintContent;
+                    jumpHintContent.className = `jump-hint-panel text-center ${hintClass}`;
+                } else {
+                    jumpHint.style.display = 'none';
+                }
+            },
+
             update: function() {
                 gameState.time++;
                 this.platforms.forEach(p => p.update()); 
@@ -965,6 +1033,7 @@
                 if (this.ball) camera.follow(this.ball);
                 if (gameState.screen === 'PLAYING') {
                      powerBar.style.height = gameState.charging ? (gameState.chargePower / MAX_JUMP_FORCE * 100) + '%' : '0%';
+                     this.updateJumpHint(); 
                 }
             },
 
