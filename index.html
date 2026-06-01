@@ -145,6 +145,7 @@
         }
         .mode-card:nth-child(1) { animation-delay: 0.1s; }
         .mode-card:nth-child(2) { animation-delay: 0.2s; }
+        .mode-card:nth-child(3) { animation-delay: 0.3s; }
 
         .mode-card::before {
             content: '';
@@ -165,6 +166,15 @@
         }
 
         .mode-icon { transition: transform 0.3s ease; }
+
+        .ai-meta {
+            display: none;
+            font-size: 0.72rem;
+            line-height: 1.1;
+            color: #a7f3d0;
+            max-width: min(52vw, 360px);
+            white-space: normal;
+        }
 
         @keyframes slideDown { from { opacity: 0; transform: translateY(-50px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(50px); } to { opacity: 1; transform: translateY(0); } }
@@ -189,6 +199,7 @@
             <div id="topInfoBar" class="glass-panel px-4 py-2 rounded-full text-lg font-bold shadow-lg flex items-center gap-3" style="display: none;">
                 <span id="modeDisplay" class="text-xs uppercase tracking-wider text-gray-400">MODE</span>
                 <span id="levelDisplay" class="text-xl text-white">1</span>
+                <span id="aiMetaDisplay" class="ai-meta"></span>
             </div>
             <div id="topControls" class="flex space-x-2 pointer-events-auto" style="display: none;">
                 <!-- 修复: 确保点击后能正常回到主菜单，并可以重新点击模式按钮 -->
@@ -217,7 +228,7 @@
         <div class="absolute inset-0 bg-gradient-to-b from-slate-900/60 via-slate-900/80 to-slate-900/95 backdrop-blur-[3px]"></div>
         <div class="absolute inset-0 bg-gradient-overlay pointer-events-none"></div>
 
-        <div class="relative z-30 flex flex-col items-center w-full max-w-md px-6 pointer-events-auto">
+        <div class="relative z-30 flex flex-col items-center w-full max-w-lg px-6 pointer-events-auto">
             
             <div class="title-container">
                 <div class="title-bouncer-container">
@@ -227,8 +238,8 @@
                 <p class="title-sub">BOUNCE MASTER</p>
             </div>
             
-            <div id="startMenuButtons" class="w-full flex flex-col gap-6 px-2">
-                <button onclick="event.stopPropagation(); game.startMode('easy')" class="mode-card btn w-full py-5 rounded-2xl shadow-lg flex items-center justify-between px-8 group border-l-4 border-l-cyan-400">
+            <div id="startMenuButtons" class="w-full flex flex-col gap-4 px-2">
+                <button onclick="event.stopPropagation(); game.startMode('easy')" class="mode-card btn w-full py-4 rounded-2xl shadow-lg flex items-center justify-between px-8 group border-l-4 border-l-cyan-400">
                     <div class="flex flex-col items-start">
                         <span class="text-2xl font-bold tracking-widest text-cyan-50">简单模式</span>
                         <span class="text-xs text-cyan-300/70 font-medium mt-1">20关 • 休闲闯关</span>
@@ -236,12 +247,20 @@
                     <span class="text-4xl mode-icon">🌱</span>
                 </button>
 
-                <button onclick="event.stopPropagation(); game.startMode('hard')" class="mode-card btn w-full py-5 rounded-2xl shadow-lg flex items-center justify-between px-8 group border-l-4 border-l-fuchsia-500">
+                <button onclick="event.stopPropagation(); game.startMode('hard')" class="mode-card btn w-full py-4 rounded-2xl shadow-lg flex items-center justify-between px-8 group border-l-4 border-l-fuchsia-500">
                     <div class="flex flex-col items-start">
                         <span class="text-2xl font-bold tracking-widest text-fuchsia-50">困难模式</span>
                         <span class="text-xs text-fuchsia-300/70 font-medium mt-1">2关 • 史诗挑战</span>
                     </div>
                     <span class="text-4xl mode-icon">🔥</span>
+                </button>
+
+                <button onclick="event.stopPropagation(); game.startMode('ai')" class="mode-card btn w-full py-4 rounded-2xl shadow-lg flex items-center justify-between px-8 group border-l-4 border-l-emerald-400">
+                    <div class="flex flex-col items-start">
+                        <span class="text-2xl font-bold tracking-widest text-emerald-50">AI生成挑战</span>
+                        <span class="text-xs text-emerald-300/70 font-medium mt-1">动态关卡 • 可复现Seed</span>
+                    </div>
+                    <span class="text-4xl mode-icon">🤖</span>
                 </button>
             </div>
 
@@ -267,6 +286,7 @@
         const powerBarContainer = document.getElementById('powerBarContainer');
         const topInfoBar = document.getElementById('topInfoBar');
         const topControls = document.getElementById('topControls');
+        const aiMetaDisplay = document.getElementById('aiMetaDisplay');
 
         // 物理常量
         const GRAVITY = 0.5; 
@@ -277,12 +297,14 @@
         const JUMP_CHARGE_RATE = 0.5; 
         const MAX_JUMP_FORCE = 19; 
         const MIN_JUMP_FORCE = 5; 
+        const AI_PROFILE_KEY = 'bouncemaster.aiProfile.v1';
         
         // 游戏全局状态
         const gameState = {
             screen: 'START', // START, PLAYING, GAMEOVER, WIN, LEVEL_COMPLETE
             mode: 'easy', 
             currentLevel: 0,
+            aiChallenge: null,
             charging: false,
             chargePower: 0,
             keys: { left: false, right: false, space: false },
@@ -661,7 +683,200 @@
             }
         }
 
-        // --- 关卡数据 (保持不变) ---
+        // --- AI Director: 本地关卡生成和玩家画像 ---
+        const aiDirector = {
+            strategies: ['precision', 'rhythm', 'recovery', 'endurance'],
+
+            createDefaultProfile: function() {
+                return {
+                    attempts: 0,
+                    clears: 0,
+                    falls: 0,
+                    hazardHits: 0,
+                    lastReasons: [],
+                    currentDifficulty: 1
+                };
+            },
+
+            loadProfile: function() {
+                try {
+                    const raw = localStorage.getItem(AI_PROFILE_KEY);
+                    if (!raw) return this.createDefaultProfile();
+                    return Object.assign(this.createDefaultProfile(), JSON.parse(raw));
+                } catch (error) {
+                    return this.createDefaultProfile();
+                }
+            },
+
+            saveProfile: function(profile) {
+                try {
+                    localStorage.setItem(AI_PROFILE_KEY, JSON.stringify(profile));
+                } catch (error) {
+                    // 存储不可用时不阻塞游戏。
+                }
+            },
+
+            noteAttempt: function() {
+                const profile = this.loadProfile();
+                profile.attempts += 1;
+                this.saveProfile(profile);
+                return profile;
+            },
+
+            noteFailure: function(reason) {
+                const profile = this.loadProfile();
+                if (reason.includes('深渊')) profile.falls += 1;
+                if (reason.includes('锯齿') || reason.includes('尖刺')) profile.hazardHits += 1;
+                profile.lastReasons = [reason].concat(profile.lastReasons || []).slice(0, 5);
+                profile.currentDifficulty = Math.max(1, profile.currentDifficulty - 0.35);
+                this.saveProfile(profile);
+                return profile;
+            },
+
+            noteClear: function() {
+                const profile = this.loadProfile();
+                profile.clears += 1;
+                profile.currentDifficulty = Math.min(10, profile.currentDifficulty + 0.65);
+                this.saveProfile(profile);
+                return profile;
+            },
+
+            makeSeed: function(profile) {
+                const base = Date.now().toString(36).slice(-5).toUpperCase();
+                return `AI-${base}-${profile.attempts + profile.clears + 1}`;
+            },
+
+            hashSeed: function(seed) {
+                let hash = 2166136261;
+                for (let i = 0; i < seed.length; i++) {
+                    hash ^= seed.charCodeAt(i);
+                    hash = Math.imul(hash, 16777619);
+                }
+                return hash >>> 0;
+            },
+
+            makeRandom: function(seed) {
+                let state = this.hashSeed(seed) || 1;
+                return function() {
+                    state = Math.imul(1664525, state) + 1013904223;
+                    return (state >>> 0) / 4294967296;
+                };
+            },
+
+            pickStrategy: function(profile, random) {
+                const recent = (profile.lastReasons || []).join(' ');
+                if (recent.includes('深渊') || profile.attempts > profile.clears + 3) return 'recovery';
+                if (profile.currentDifficulty >= 6.5) return random() > 0.5 ? 'precision' : 'endurance';
+                if (profile.hazardHits > profile.falls + 1) return 'rhythm';
+                return this.strategies[Math.floor(random() * this.strategies.length)];
+            },
+
+            getTuning: function(profile, strategy) {
+                const difficulty = Math.max(1, Math.min(10, profile.currentDifficulty || 1));
+                const relief = strategy === 'recovery' ? 0.45 : 1;
+                return {
+                    difficulty,
+                    platformCount: Math.round(7 + difficulty * 1.25 + (strategy === 'endurance' ? 4 : 0)),
+                    gapBase: strategy === 'precision' ? 150 : 125,
+                    gapScale: (10 + difficulty * 7) * relief,
+                    hazardChance: Math.min(0.36, (0.06 + difficulty * 0.025) * relief),
+                    fragileChance: Math.min(0.38, (0.08 + difficulty * 0.03) * (strategy === 'precision' ? 1.35 : relief)),
+                    sawChance: Math.min(0.28, (0.03 + difficulty * 0.018) * (strategy === 'rhythm' ? 1.4 : relief)),
+                    verticalDrift: strategy === 'rhythm' ? 95 : 70
+                };
+            },
+
+            buildLocalChallenge: function(seed, profile) {
+                const random = this.makeRandom(seed);
+                const strategy = this.pickStrategy(profile, random);
+                const tuning = this.getTuning(profile, strategy);
+                const platforms = [
+                    {x: -120, y: 500, w: 420, h: 200, type: 'normal'},
+                    {x: 50, y: 330, w: `AI Seed: ${seed}`, h: 0, type: 'text'},
+                    {x: 50, y: 365, w: `难度 ${tuning.difficulty.toFixed(1)} / 策略 ${strategy}`, h: 0, type: 'text'}
+                ];
+
+                let x = 320;
+                let y = 490;
+                for (let i = 0; i < tuning.platformCount; i++) {
+                    const gap = tuning.gapBase + random() * tuning.gapScale;
+                    const width = Math.max(70, 170 - tuning.difficulty * 6 + random() * 80);
+                    y += (random() - 0.5) * tuning.verticalDrift;
+                    y = Math.max(210, Math.min(560, y));
+
+                    const hazardRoll = random();
+                    if (hazardRoll < tuning.sawChance && i > 1) {
+                        platforms.push({x: x + gap * 0.55, y: y - 70, w: 0, h: 0, type: 'saw', radius: 18 + tuning.difficulty * 1.4});
+                    }
+
+                    const type = random() < tuning.fragileChance && i > 0 ? 'fragile' : 'normal';
+                    platforms.push({x: x + gap, y, w: width, h: 44, type});
+
+                    if (random() < tuning.hazardChance && strategy !== 'recovery') {
+                        platforms.push({x: x + gap * 0.45, y: Math.min(650, y + 115), w: Math.max(90, gap * 0.7), h: 42, type: 'spike'});
+                    }
+
+                    x += gap + width;
+                }
+
+                platforms.push({x: x + 160, y: Math.max(180, y - 95), w: 60, h: 80, type: 'goal'});
+                return {
+                    title: 'AI Challenge',
+                    seed,
+                    strategy,
+                    difficulty: tuning.difficulty,
+                    source: 'local',
+                    level: { start: {x: 50, y: 400}, platforms }
+                };
+            },
+
+            validateChallenge: function(challenge) {
+                if (!challenge || !challenge.level || !challenge.level.start || !Array.isArray(challenge.level.platforms)) return false;
+                if (typeof challenge.seed !== 'string' || typeof challenge.strategy !== 'string') return false;
+                const allowed = new Set(['normal', 'fragile', 'spike', 'saw', 'goal', 'text']);
+                const strategies = new Set(this.strategies);
+                const hasGoal = challenge.level.platforms.some(p => p && p.type === 'goal');
+                const hasGround = challenge.level.platforms.some(p => p && p.type === 'normal' && p.w >= 200);
+                return strategies.has(challenge.strategy) && hasGoal && hasGround && challenge.level.platforms.every(p => p && allowed.has(p.type));
+            },
+
+            requestRemoteChallenge: async function(seed, profile) {
+                const endpoint = window.BOUNCEMASTER_AI_ENDPOINT;
+                if (!endpoint) return null;
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            seed,
+                            playerProfile: {
+                                attempts: profile.attempts,
+                                clears: profile.clears,
+                                falls: profile.falls,
+                                hazardHits: profile.hazardHits,
+                                currentDifficulty: profile.currentDifficulty
+                            }
+                        })
+                    });
+                    if (!response.ok) return null;
+                    const challenge = await response.json();
+                    if (!this.validateChallenge(challenge)) return null;
+                    return Object.assign(challenge, {source: 'remote'});
+                } catch (error) {
+                    return null;
+                }
+            },
+
+            nextChallenge: async function() {
+                const profile = this.noteAttempt();
+                const seed = this.makeSeed(profile);
+                const remote = await this.requestRemoteChallenge(seed, profile);
+                if (remote) return remote;
+                return this.buildLocalChallenge(seed, profile);
+            }
+        };
+
+        // --- 关卡数据 ---
         const demoLevel = {
              start: {x: 0, y: 400},
              platforms: [
@@ -811,10 +1026,16 @@
                 overlay.style.display = 'none'; 
                 topInfoBar.style.display = 'flex';
                 topControls.style.display = 'flex';
+                aiMetaDisplay.style.display = 'none';
                 this.loadLevel(0);
             },
 
-            loadLevel: function(levelIndex) {
+            loadLevel: async function(levelIndex) {
+                if (gameState.mode === 'ai') {
+                    await this.loadAiChallenge();
+                    return;
+                }
+
                 const levels = (gameState.mode === 'easy' ? easyLevels : hardLevels);
                 if (levelIndex >= levels.length) {
                     this.showScreen('WIN', "通关！");
@@ -823,6 +1044,7 @@
                 gameState.currentLevel = levelIndex;
                 levelDisplay.textContent = levelIndex + 1;
                 modeDisplay.textContent = gameState.mode === 'easy' ? '简单' : '困难';
+                aiMetaDisplay.style.display = 'none';
                 
                 this.loadLevelData(levels[levelIndex]);
                 
@@ -836,6 +1058,35 @@
                 this.showScreen('PLAYING');
             },
 
+            loadAiChallenge: async function() {
+                modeDisplay.textContent = 'AI生成';
+                levelDisplay.textContent = '∞';
+                aiMetaDisplay.style.display = 'inline-block';
+                aiMetaDisplay.textContent = 'AI Director 正在生成...';
+
+                const fallbackProfile = aiDirector.noteAttempt();
+                let challenge;
+                try {
+                    const seed = aiDirector.makeSeed(fallbackProfile);
+                    const remote = await aiDirector.requestRemoteChallenge(seed, fallbackProfile);
+                    challenge = remote || aiDirector.buildLocalChallenge(seed, fallbackProfile);
+                } catch (error) {
+                    const seed = aiDirector.makeSeed(fallbackProfile);
+                    challenge = aiDirector.buildLocalChallenge(seed, fallbackProfile);
+                }
+                gameState.aiChallenge = challenge;
+                gameState.currentLevel = 0;
+                aiMetaDisplay.textContent = `AI Seed ${challenge.seed} · 难度 ${(challenge.difficulty || aiDirector.loadProfile().currentDifficulty).toFixed(1)} · ${challenge.strategy} · ${challenge.source === 'remote' ? 'remote' : 'local'}`;
+
+                this.loadLevelData(challenge.level);
+                camera.x = this.ball.x - camera.width * 0.4;
+                camera.y = this.ball.y - camera.height * 0.55;
+                camera.targetX = camera.x;
+                camera.targetY = camera.y;
+                camera.currentRatioY = 0.55;
+                this.showScreen('PLAYING');
+            },
+
             loadLevelData: function(levelData) {
                 this.ball = new Ball(levelData.start.x, levelData.start.y);
                 this.platforms = levelData.platforms.map(p => new Platform(p.x, p.y, p.w, p.h, p.type, p));
@@ -846,6 +1097,7 @@
             resetLevel: function() { this.loadLevel(gameState.currentLevel); },
 
             gameOver: function(reason) {
+                if (gameState.mode === 'ai') aiDirector.noteFailure(reason);
                 createParticles(this.ball.x, this.ball.y, 30, '#38bdf8');
                 this.ball.dead = true;
                 setTimeout(() => this.showScreen('GAMEOVER', reason), 600);
@@ -866,7 +1118,7 @@
                     
                     if (screenName === 'GAMEOVER') {
                         document.getElementById('overlayTitle').textContent = "破碎"; 
-                        actionBtn.style.display = 'block'; actionBtn.textContent = "重试";
+                        actionBtn.style.display = 'block'; actionBtn.textContent = gameState.mode === 'ai' ? "生成新挑战" : "重试";
                         actionBtn.onclick = (e) => { e.stopPropagation(); this.resetLevel(); };
                         startMenuButtons.style.display = 'none';
                     } else if (screenName === 'WIN') {
@@ -878,8 +1130,9 @@
                         };
                         startMenuButtons.style.display = 'none';
                     } else if (screenName === 'LEVEL_COMPLETE') {
+                        if (gameState.mode === 'ai') aiDirector.noteClear();
                         document.getElementById('overlayTitle').textContent = "完成";
-                        actionBtn.style.display = 'block'; actionBtn.textContent = "下一关";
+                        actionBtn.style.display = 'block'; actionBtn.textContent = gameState.mode === 'ai' ? "生成下一关" : "下一关";
                         actionBtn.onclick = (e) => { e.stopPropagation(); this.loadLevel(gameState.currentLevel + 1); };
                         startMenuButtons.style.display = 'none';
                     }

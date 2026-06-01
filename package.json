@@ -1,0 +1,10 @@
+{
+  "name": "bouncemaster",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Static HTML5 canvas platform game with a local AI Director.",
+  "scripts": {
+    "test": "node scripts/validate.js"
+  },
+  "license": "MIT"
+}

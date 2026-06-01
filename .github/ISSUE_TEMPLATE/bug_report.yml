@@ -1,0 +1,36 @@
+name: Bug report
+description: Report a gameplay, browser, or generated-level issue.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened?
+    validations:
+      required: true
+  - type: input
+    id: ai-seed
+    attributes:
+      label: AI seed
+      description: If this happened in AI Generated Challenge mode, paste the seed from the HUD.
+      placeholder: AI-ABCDE-1
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Open the game\n2. Choose AI生成挑战\n3. ..."
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      placeholder: "Safari on iPhone, Chrome on macOS, etc."
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
